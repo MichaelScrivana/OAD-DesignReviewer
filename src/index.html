@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-powered brand compliance review for Bayer's One A Day designs">
+    <title>OAD Brand Review Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">
+                    <span class="logo-oad">One A Day</span>
+                    <span class="logo-subtitle">Brand Review Assistant</span>
+                </h1>
+                <p class="tagline">AI-powered design compliance checking</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload Form Section -->
+            <section id="upload-section" class="section upload-section">
+                <div class="card">
+                    <h2 class="section-title">Submit Design for Review</h2>
+                    
+                    <form id="upload-form" class="upload-form">
+                        <!-- Brand Selector -->
+                        <div class="form-group">
+                            <label for="brand-select" class="form-label">
+                                <span class="label-text">Brand</span>
+                                <span class="label-required">*</span>
+                            </label>
+                            <select id="brand-select" name="brand" class="form-select" required>
+                                <option value="OAD">One A Day</option>
+                                <option value="CLARITIN">Claritin</option>
+                                <option value="ALEVE">Aleve</option>
+                                <option value="ASPIRIN">Bayer Aspirin</option>
+                                <option value="CITRACAL">Citracal</option>
+                            </select>
+                        </div>
+
+                        <!-- Design Type Selector -->
+                        <div class="form-group">
+                            <label for="design-type-select" class="form-label">
+                                <span class="label-text">Design Type</span>
+                                <span class="label-required">*</span>
+                            </label>
+                            <select id="design-type-select" name="designType" class="form-select" required>
+                                <option value="social-media">Social Media Post</option>
+                                <option value="banner">Digital Banner Ad</option>
+                                <option value="email">Email Marketing</option>
+                                <option value="print">Print Advertisement</option>
+                                <option value="packaging">Product Packaging</option>
+                                <option value="website">Website Asset</option>
+                                <option value="presentation">Presentation Slide</option>
+                            </select>
+                        </div>
+
+                        <!-- Image Upload -->
+                        <div class="form-group">
+                            <label for="file-upload" class="form-label">
+                                <span class="label-text">Design Image</span>
+                                <span class="label-required">*</span>
+                                <span class="label-hint">(PNG, JPG, SVG - Max 10MB)</span>
+                            </label>
+                            <div id="drop-zone" class="drop-zone">
+                                <input type="file" id="file-upload" name="file" accept="image/png,image/jpeg,image/svg+xml" required hidden>
+                                <div class="drop-zone-content">
+                                    <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="17 8 12 3 7 8"></polyline>
+                                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                                    </svg>
+                                    <p class="drop-zone-text">
+                                        <strong>Click to upload</strong> or drag and drop<br>
+                                        <span class="text-muted">PNG, JPG or SVG up to 10MB</span>
+                                    </p>
+                                </div>
+                                <div id="preview-container" class="preview-container hidden">
+                                    <img id="preview-image" class="preview-image" alt="Preview">
+                                    <button type="button" id="remove-image" class="btn-remove" aria-label="Remove image">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email Input -->
+                        <div class="form-group">
+                            <label for="email-input" class="form-label">
+                                <span class="label-text">Your Email</span>
+                                <span class="label-required">*</span>
+                            </label>
+                            <input type="email" id="email-input" name="email" class="form-input" placeholder="designer@bayer.com" required>
+                        </div>
+
+                        <!-- Notes (Optional) -->
+                        <div class="form-group">
+                            <label for="notes-input" class="form-label">
+                                <span class="label-text">Notes</span>
+                                <span class="label-hint">(Optional context or questions)</span>
+                            </label>
+                            <textarea id="notes-input" name="notes" class="form-textarea" rows="3" placeholder="Add any context about this design..."></textarea>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="form-actions">
+                            <button type="submit" id="submit-btn" class="btn btn-primary">
+                                <span class="btn-text">Analyze Design</span>
+                                <span class="btn-spinner hidden">
+                                    <svg class="spinner" width="20" height="20" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"></circle>
+                                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="4" fill="none"></path>
+                                    </svg>
+                                    Analyzing...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="results-section" class="section results-section hidden">
+                <div class="card">
+                    <!-- Results Header -->
+                    <div class="results-header">
+                        <div class="results-title-row">
+                            <h2 class="section-title">Compliance Report</h2>
+                            <div id="status-badge" class="badge badge-fail">Fail</div>
+                        </div>
+                        <div class="results-meta">
+                            <span id="brand-name" class="meta-item">One A Day</span>
+                            <span class="meta-separator">•</span>
+                            <span id="design-type" class="meta-item">Social Media</span>
+                            <span class="meta-separator">•</span>
+                            <span id="review-date" class="meta-item">Feb 4, 2026</span>
+                        </div>
+                        <div class="score-container">
+                            <div class="score-circle">
+                                <svg class="score-svg" viewBox="0 0 100 100">
+                                    <circle class="score-bg" cx="50" cy="50" r="45" fill="none" stroke-width="8"></circle>
+                                    <circle id="score-progress" class="score-progress" cx="50" cy="50" r="45" fill="none" stroke-width="8"></circle>
+                                </svg>
+                                <div class="score-text">
+                                    <span id="score-value" class="score-value">72</span>
+                                    <span class="score-label">Score</span>
+                                </div>
+                            </div>
+                            <div class="score-summary">
+                                <h3 class="score-summary-title">Overall Assessment</h3>
+                                <p id="summary-text" class="score-summary-text">Design has 2 critical violations that must be fixed before approval.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabs -->
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="violations">
+                            <span class="tab-label">Critical Violations</span>
+                            <span id="violations-count" class="tab-badge">2</span>
+                        </button>
+                        <button class="tab-btn" data-tab="warnings">
+                            <span class="tab-label">Warnings</span>
+                            <span id="warnings-count" class="tab-badge">1</span>
+                        </button>
+                        <button class="tab-btn" data-tab="passed">
+                            <span class="tab-label">Passed Checks</span>
+                            <span id="passed-count" class="tab-badge">3</span>
+                        </button>
+                        <button class="tab-btn" data-tab="recommendations">
+                            <span class="tab-label">Recommendations</span>
+                            <span id="recommendations-count" class="tab-badge">2</span>
+                        </button>
+                    </div>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content">
+                        <!-- Violations Tab -->
+                        <div id="violations-tab" class="tab-pane active">
+                            <div id="violations-list" class="findings-list"></div>
+                        </div>
+
+                        <!-- Warnings Tab -->
+                        <div id="warnings-tab" class="tab-pane">
+                            <div id="warnings-list" class="findings-list"></div>
+                        </div>
+
+                        <!-- Passed Tab -->
+                        <div id="passed-tab" class="tab-pane">
+                            <div id="passed-list" class="findings-list"></div>
+                        </div>
+
+                        <!-- Recommendations Tab -->
+                        <div id="recommendations-tab" class="tab-pane">
+                            <div id="recommendations-list" class="findings-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Findings Accordions -->
+                    <div class="details-section">
+                        <h3 class="details-title">Detailed Analysis</h3>
+                        
+                        <div class="accordion">
+                            <!-- Logo Details -->
+                            <div class="accordion-item">
+                                <button class="accordion-header" data-accordion="logo">
+                                    <svg class="icon-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                    <span class="accordion-title">Logo Usage</span>
+                                    <span id="logo-status" class="status-indicator status-fail"></span>
+                                </button>
+                                <div class="accordion-content">
+                                    <div id="logo-details" class="details-content"></div>
+                                </div>
+                            </div>
+
+                            <!-- Colors Details -->
+                            <div class="accordion-item">
+                                <button class="accordion-header" data-accordion="colors">
+                                    <svg class="icon-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                    <span class="accordion-title">Color Palette</span>
+                                    <span id="colors-status" class="status-indicator status-fail"></span>
+                                </button>
+                                <div class="accordion-content">
+                                    <div id="colors-details" class="details-content"></div>
+                                </div>
+                            </div>
+
+                            <!-- Typography Details -->
+                            <div class="accordion-item">
+                                <button class="accordion-header" data-accordion="typography">
+                                    <svg class="icon-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                    <span class="accordion-title">Typography</span>
+                                    <span id="typography-status" class="status-indicator status-warning"></span>
+                                </button>
+                                <div class="accordion-content">
+                                    <div id="typography-details" class="details-content"></div>
+                                </div>
+                            </div>
+
+                            <!-- Accessibility Details -->
+                            <div class="accordion-item">
+                                <button class="accordion-header" data-accordion="accessibility">
+                                    <svg class="icon-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                    <span class="accordion-title">Accessibility</span>
+                                    <span id="accessibility-status" class="status-indicator status-pass"></span>
+                                </button>
+                                <div class="accordion-content">
+                                    <div id="accessibility-details" class="details-content"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="results-actions">
+                        <button id="download-btn" class="btn btn-secondary">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Download Report
+                        </button>
+                        <button id="share-btn" class="btn btn-secondary">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="18" cy="5" r="3"></circle>
+                                <circle cx="6" cy="12" r="3"></circle>
+                                <circle cx="18" cy="19" r="3"></circle>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                            </svg>
+                            Share Results
+                        </button>
+                        <button id="request-review-btn" class="btn btn-secondary">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="8.5" cy="7" r="4"></circle>
+                                <polyline points="17 11 19 13 23 9"></polyline>
+                            </svg>
+                            Request Human Review
+                        </button>
+                        <button id="new-review-btn" class="btn btn-primary">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="1 4 1 10 7 10"></polyline>
+                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                            </svg>
+                            Start New Review
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <p class="footer-text">
+                    <strong>OAD Brand Review Assistant</strong> • Powered by n8n + GPT-4o Vision • 
+                    <a href="https://github.com/MichaelScrivana/OAD-DesignReviewer" target="_blank" rel="noopener">View on GitHub</a>
+                </p>
+                <p class="footer-disclaimer">
+                    This AI assistant provides automated guidance. Final brand approval requires human review by the brand team.
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">
+        <div class="toast-content">
+            <svg id="toast-icon" class="toast-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <span id="toast-message" class="toast-message">Success!</span>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

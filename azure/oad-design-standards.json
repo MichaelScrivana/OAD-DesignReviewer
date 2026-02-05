@@ -1,0 +1,235 @@
+{
+  "brandId": "OAD",
+  "brandName": "One A Day",
+  "lastUpdated": "2026-02-04",
+  "version": "1.0.0",
+  "description": "Brand design standards and guidelines for One A Day (OAD) products and marketing materials",
+  
+  "colorPalettes": {
+    "primary": ["#FF6600"],
+    "secondary": ["#333333"],
+    "accent": ["#F5F5F5"],
+    "neutral": ["#FFFFFF", "#000000"],
+    "supportingColors": {
+      "lightGray": "#E5E7EB",
+      "darkGray": "#6B7280",
+      "backgroundLight": "#F9FAFB"
+    }
+  },
+  
+  "typography": {
+    "headings": {
+      "fontFamily": "Helvetica Neue",
+      "fallbackFonts": ["Helvetica", "Arial", "sans-serif"],
+      "weights": [700, 500],
+      "sizes": {
+        "h1": "48px",
+        "h2": "36px",
+        "h3": "28px",
+        "h4": "24px",
+        "h5": "20px",
+        "h6": "18px"
+      },
+      "lineHeight": "1.2",
+      "letterSpacing": "-0.02em"
+    },
+    "body": {
+      "fontFamily": "Helvetica Neue",
+      "fallbackFonts": ["Helvetica", "Arial", "sans-serif"],
+      "weight": 400,
+      "size": "16px",
+      "lineHeight": "1.5",
+      "letterSpacing": "normal"
+    },
+    "caption": {
+      "fontFamily": "Helvetica Neue",
+      "weight": 400,
+      "size": "14px",
+      "lineHeight": "1.4"
+    },
+    "restrictions": [
+      "Do not use fonts other than Helvetica Neue or approved fallbacks",
+      "Do not use font weights other than 400, 500, or 700",
+      "Maintain specified line-height ratios for readability"
+    ]
+  },
+  
+  "logoUsage": {
+    "minWidth": "120px",
+    "minHeight": "60px",
+    "clearSpace": "20px",
+    "clearSpaceDescription": "Minimum 20px clear space on all sides of the logo. Clear space equals the height of the 'O' in 'One'.",
+    "backgrounds": [
+      "white",
+      "light gray (#F5F5F5)",
+      "dark backgrounds with white version"
+    ],
+    "versions": {
+      "primary": "Full color on white or light backgrounds",
+      "white": "White logo on dark backgrounds (#333333 or darker)",
+      "black": "Black logo for single-color applications"
+    },
+    "prohibitions": [
+      "Do not stretch or distort the logo proportions",
+      "Do not rotate the logo at any angle",
+      "Do not add effects, shadows, or gradients to the logo",
+      "Do not place logo on busy or patterned backgrounds",
+      "Do not change logo colors or use unapproved color variations",
+      "Do not separate logo elements or rearrange components",
+      "Do not use outdated or unofficial logo versions"
+    ],
+    "positioning": {
+      "preferred": "Top-left or bottom-right",
+      "alignment": "Align to grid/margin, not arbitrary positioning"
+    }
+  },
+  
+  "accessibility": {
+    "minContrastRatio": "4.5:1",
+    "minContrastRatioDescription": "WCAG AA standard for normal text. Use 3:1 for large text (18px+ or 14px+ bold)",
+    "minFontSize": "14px",
+    "minFontSizeDescription": "Minimum font size for body text. Smaller text (12px) allowed only for legal disclaimers.",
+    "colorBlindnessConsiderations": "Do not rely on color alone to convey information. Use icons, patterns, or text labels.",
+    "altTextRequired": true,
+    "altTextGuidelines": "Provide descriptive alt text for all images. Describe content and function, not appearance."
+  },
+  
+  "designPrinciples": {
+    "simplicity": "Keep designs clean and uncluttered. Focus on clear messaging.",
+    "consistency": "Maintain visual consistency across all brand touchpoints.",
+    "hierarchy": "Establish clear visual hierarchy with typography and spacing.",
+    "whitespace": "Use generous whitespace to improve readability and focus."
+  },
+  
+  "spacing": {
+    "baseUnit": "8px",
+    "scale": ["4px", "8px", "16px", "24px", "32px", "48px", "64px"],
+    "margins": {
+      "mobile": "16px",
+      "tablet": "24px",
+      "desktop": "32px"
+    },
+    "gutters": {
+      "mobile": "16px",
+      "tablet": "24px",
+      "desktop": "32px"
+    }
+  },
+  
+  "imagery": {
+    "style": "Clean, vibrant, lifestyle-focused photography",
+    "subjects": "Real people, families, active lifestyles, health and wellness",
+    "avoid": [
+      "Stock photo clichés",
+      "Overly clinical or medical imagery",
+      "Dark or gloomy photography",
+      "Images that feel staged or inauthentic"
+    ],
+    "treatments": {
+      "preferredFilters": "Natural, warm tones with good contrast",
+      "avoid": "Heavy filters, over-saturation, black and white"
+    }
+  },
+  
+  "iconography": {
+    "style": "Simple, line-based icons with rounded corners",
+    "strokeWidth": "2px",
+    "size": {
+      "small": "16px",
+      "medium": "24px",
+      "large": "32px"
+    },
+    "color": "Use brand primary (#FF6600) or neutral (#333333)"
+  },
+  
+  "designTypes": {
+    "socialMedia": {
+      "dimensions": {
+        "instagram-post": "1080x1080px",
+        "instagram-story": "1080x1920px",
+        "facebook-post": "1200x630px",
+        "twitter-post": "1200x675px",
+        "linkedin-post": "1200x627px"
+      },
+      "guidelines": [
+        "Logo must be visible and meet minimum size requirements",
+        "Text must be legible at thumbnail size",
+        "Include call-to-action when appropriate",
+        "Ensure safe zones for platform overlays (profile pictures, UI elements)"
+      ]
+    },
+    "banner": {
+      "dimensions": {
+        "leaderboard": "728x90px",
+        "medium-rectangle": "300x250px",
+        "wide-skyscraper": "160x600px",
+        "large-rectangle": "336x280px"
+      },
+      "guidelines": [
+        "Clear call-to-action button",
+        "Readable text at small sizes",
+        "Logo placement in corner",
+        "File size under 150KB for web performance"
+      ]
+    },
+    "email": {
+      "maxWidth": "600px",
+      "guidelines": [
+        "Mobile-responsive design",
+        "Large, tappable buttons (minimum 44x44px)",
+        "Web-safe fonts with fallbacks",
+        "Alt text for all images"
+      ]
+    },
+    "print": {
+      "colorMode": "CMYK",
+      "resolution": "300 DPI minimum",
+      "bleed": "0.125 inches",
+      "guidelines": [
+        "Use high-resolution images",
+        "Include trim and bleed marks",
+        "Provide both RGB and CMYK versions of logo"
+      ]
+    }
+  },
+  
+  "legalRequirements": {
+    "disclaimers": {
+      "fontSize": "Minimum 10px (print) or 12px (digital)",
+      "placement": "Bottom of design, clearly readable",
+      "required": "Supplement facts, health claims, FDA disclaimers as applicable"
+    },
+    "copyrightNotice": "© 2026 Bayer Consumer Health. All rights reserved.",
+    "trademarkSymbol": "Use ® for registered trademarks on first mention"
+  },
+  
+  "approvalProcess": {
+    "reviewers": [
+      "Brand Manager",
+      "Legal/Compliance Team",
+      "Creative Director"
+    ],
+    "timeline": "Allow 3-5 business days for brand review",
+    "documentation": "Submit design brief, rationale, and usage context with all submissions"
+  },
+  
+  "resources": {
+    "brandGuidelines": "https://bayer-brand-portal.com/oad/guidelines.pdf",
+    "logoDownloads": "https://bayer-brand-portal.com/oad/logos",
+    "templateLibrary": "https://bayer-brand-portal.com/oad/templates",
+    "contactEmail": "brand-team@bayer.com"
+  },
+  
+  "metadata": {
+    "createdBy": "Bayer Brand Team",
+    "effectiveDate": "2026-02-04",
+    "nextReviewDate": "2027-02-04",
+    "changeLog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-02-04",
+        "changes": "Initial brand standards document created for AI-powered compliance system"
+      }
+    ]
+  }
+}

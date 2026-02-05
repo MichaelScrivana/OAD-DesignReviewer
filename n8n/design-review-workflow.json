@@ -1,0 +1,330 @@
+{
+  "name": "OAD Brand Design Review Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "design-review",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "oad-design-review"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.body.imageFile}}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{$json.body.brandId}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$credentials.azureBlobSasUrl}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "fetch-brand-standards",
+      "name": "Fetch Brand Standards from Azure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "azure-blob-storage",
+          "name": "Azure Blob Storage SAS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and prepare data for GPT-4o Vision\nconst inputData = $input.first().json;\nconst brandStandards = inputData.body;\nconst designData = items[0].json;\n\n// Get brand-specific standards\nconst brand = designData.brandId || 'OAD';\nconst standards = brandStandards;\n\n// Prepare prompt for GPT-4o Vision\nconst prompt = `You are a brand compliance expert analyzing a design against brand guidelines.\n\n**BRAND: ${brand === 'OAD' ? 'One A Day' : brand}**\n\n**BRAND GUIDELINES:**\n- Primary Color: ${standards.colorPalettes?.primary?.join(', ') || '#FF6600'}\n- Secondary Color: ${standards.colorPalettes?.secondary?.join(', ') || '#333333'}\n- Accent Colors: ${standards.colorPalettes?.accent?.join(', ') || '#F5F5F5'}\n- Logo minimum width: ${standards.logoUsage?.minWidth || '120px'}\n- Logo minimum height: ${standards.logoUsage?.minHeight || '60px'}\n- Logo clearspace: ${standards.logoUsage?.clearSpace || '20px minimum on all sides'}\n- Approved fonts: ${standards.typography?.headings?.fontFamily || 'Helvetica Neue'} (headings), ${standards.typography?.body?.fontFamily || 'Helvetica Neue'} (body)\n- Minimum body text size: ${standards.accessibility?.minFontSize || '14px'}\n- Minimum contrast ratio: ${standards.accessibility?.minContrastRatio || '4.5:1'}\n\n**LOGO USAGE RULES:**\n${standards.logoUsage?.prohibitions?.map(p => '- ' + p).join('\\n') || ''}\n\n**TASK:**\nAnalyze this ${designData.designType} design image and return a JSON compliance report.\n\n**REQUIRED JSON FORMAT:**\n{\n  \"overallCompliance\": \"pass\" | \"fail\" | \"needs-review\",\n  \"complianceScore\": 0-100,\n  \"findings\": {\n    \"logo\": {\n      \"present\": boolean,\n      \"width\": \"string (e.g. '100px')\",\n      \"height\": \"string\",\n      \"clearSpace\": \"pass\" | \"fail\",\n      \"violations\": [\"array of strings\"]\n    },\n    \"colors\": {\n      \"detectedColors\": [\"array of hex codes\"],\n      \"unapprovedColors\": [\"array of hex codes\"],\n      \"violations\": [\"array of strings\"]\n    },\n    \"typography\": {\n      \"detectedFonts\": [\"array of font names\"],\n      \"fontApproved\": boolean,\n      \"violations\": [\"array of strings\"]\n    },\n    \"accessibility\": {\n      \"contrastCheck\": \"pass\" | \"fail\",\n      \"textSizeCheck\": \"pass\" | \"fail\",\n      \"violations\": [\"array of strings\"]\n    }\n  },\n  \"criticalViolations\": [\"array of critical issues\"],\n  \"warnings\": [\"array of warnings\"],\n  \"recommendations\": [\"array of actionable recommendations\"],\n  \"summary\": \"2-3 sentence overall assessment\"\n}\n\n**IMPORTANT:**\n- Be specific and actionable in violations and recommendations\n- Include actual measurements when possible (e.g., \"Logo width is 80px, minimum required is 120px\")\n- Include detected hex color codes\n- If you cannot determine something with certainty, note it as a warning rather than a critical violation\n- Return ONLY valid JSON, no markdown formatting or explanations outside the JSON`;\n\nreturn {\n  json: {\n    prompt: prompt,\n    imageBase64: designData.imageFile,\n    imageMimeType: designData.imageMimeType,\n    brandStandards: standards,\n    submissionData: designData\n  }\n};"
+      },
+      "id": "prepare-analysis",
+      "name": "Prepare Analysis Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "message",
+        "model": "gpt-4o",
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": {
+                "type": "multipart",
+                "parts": [
+                  {
+                    "type": "text",
+                    "text": "={{$json.prompt}}"
+                  },
+                  {
+                    "type": "image",
+                    "imageData": "={{$json.imageBase64}}",
+                    "mimeType": "={{$json.imageMimeType}}"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 2000
+        }
+      },
+      "id": "gpt4-vision-analysis",
+      "name": "GPT-4o Vision Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.3,
+      "position": [1050, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse GPT-4o response and structure the compliance report\nconst aiResponse = $input.first().json;\nconst submissionData = items[0].json.submissionData;\n\nlet complianceReport;\n\ntry {\n  // Extract JSON from AI response\n  const responseText = aiResponse.choices[0].message.content;\n  \n  // Try to parse JSON (remove markdown code blocks if present)\n  let jsonText = responseText.trim();\n  if (jsonText.startsWith('```json')) {\n    jsonText = jsonText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n  } else if (jsonText.startsWith('```')) {\n    jsonText = jsonText.replace(/```\\n?/g, '');\n  }\n  \n  complianceReport = JSON.parse(jsonText);\n  \n  // Add metadata\n  complianceReport.metadata = {\n    reviewDate: new Date().toISOString(),\n    brandId: submissionData.brandId,\n    designType: submissionData.designType,\n    submittedBy: submissionData.submittedBy,\n    imageName: submissionData.imageName,\n    reviewId: `review-${Date.now()}`\n  };\n  \n  // Validate and normalize score\n  if (typeof complianceReport.complianceScore !== 'number') {\n    complianceReport.complianceScore = 50; // Default if not provided\n  }\n  \n  // Ensure all required fields exist\n  if (!complianceReport.findings) {\n    complianceReport.findings = {};\n  }\n  if (!complianceReport.criticalViolations) {\n    complianceReport.criticalViolations = [];\n  }\n  if (!complianceReport.warnings) {\n    complianceReport.warnings = [];\n  }\n  if (!complianceReport.recommendations) {\n    complianceReport.recommendations = [];\n  }\n  if (!complianceReport.summary) {\n    complianceReport.summary = 'Design analysis completed.';\n  }\n  \n} catch (error) {\n  // Fallback if JSON parsing fails\n  console.error('Failed to parse AI response:', error);\n  complianceReport = {\n    overallCompliance: 'needs-review',\n    complianceScore: 0,\n    findings: {},\n    criticalViolations: ['Failed to parse AI analysis. Please try again.'],\n    warnings: [],\n    recommendations: ['Resubmit the design for analysis'],\n    summary: 'Analysis failed due to parsing error.',\n    metadata: {\n      reviewDate: new Date().toISOString(),\n      brandId: submissionData.brandId,\n      designType: submissionData.designType,\n      submittedBy: submissionData.submittedBy,\n      imageName: submissionData.imageName,\n      reviewId: `review-${Date.now()}`,\n      error: error.message\n    }\n  };\n}\n\nreturn {\n  json: complianceReport\n};"
+      },
+      "id": "parse-ai-response",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Perform automated validation checks on colors\nconst report = $input.first().json;\nconst brandStandards = items[0].json.brandStandards;\n\n// Get approved colors\nconst approvedColors = [\n  ...(brandStandards.colorPalettes?.primary || []),\n  ...(brandStandards.colorPalettes?.secondary || []),\n  ...(brandStandards.colorPalettes?.accent || []),\n  ...(brandStandards.colorPalettes?.neutral || [])\n];\n\n// Normalize colors to uppercase for comparison\nconst normalizedApproved = approvedColors.map(c => c.toUpperCase());\n\n// Validate detected colors\nif (report.findings?.colors?.detectedColors) {\n  const detectedColors = report.findings.colors.detectedColors;\n  const unapproved = [];\n  \n  detectedColors.forEach(color => {\n    const normalized = color.toUpperCase();\n    if (!normalizedApproved.includes(normalized)) {\n      unapproved.push(color);\n    }\n  });\n  \n  // Update report with validated unapproved colors\n  if (!report.findings.colors.unapprovedColors) {\n    report.findings.colors.unapprovedColors = [];\n  }\n  \n  // Merge with AI-detected unapproved colors\n  const allUnapproved = [...new Set([...report.findings.colors.unapprovedColors, ...unapproved])];\n  report.findings.colors.unapprovedColors = allUnapproved;\n  \n  // Add to critical violations if unapproved colors found\n  if (allUnapproved.length > 0 && !report.criticalViolations.some(v => v.includes('Unapproved color'))) {\n    allUnapproved.forEach(color => {\n      report.criticalViolations.push(`Unapproved color ${color} detected`);\n    });\n  }\n}\n\n// Adjust compliance score based on violations\nconst violationCount = report.criticalViolations.length;\nconst warningCount = report.warnings.length;\n\nif (violationCount > 0) {\n  // Reduce score by 10 points per critical violation (max reduction: 40)\n  const reduction = Math.min(violationCount * 10, 40);\n  report.complianceScore = Math.max(0, report.complianceScore - reduction);\n}\n\nif (warningCount > 0) {\n  // Reduce score by 5 points per warning (max reduction: 20)\n  const reduction = Math.min(warningCount * 5, 20);\n  report.complianceScore = Math.max(0, report.complianceScore - reduction);\n}\n\n// Update overall compliance based on final score\nif (report.complianceScore >= 85) {\n  report.overallCompliance = 'pass';\n} else if (report.complianceScore >= 70) {\n  report.overallCompliance = 'needs-review';\n} else {\n  report.overallCompliance = 'fail';\n}\n\nreturn {\n  json: report\n};"
+      },
+      "id": "automated-validation",
+      "name": "Automated Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate final formatted report\nconst report = $input.first().json;\n\n// Add timestamp if not present\nif (!report.metadata) {\n  report.metadata = {};\n}\nif (!report.metadata.reviewDate) {\n  report.metadata.reviewDate = new Date().toISOString();\n}\n\n// Format summary if needed\nif (report.summary && report.summary.length < 20) {\n  const violations = report.criticalViolations.length;\n  const warnings = report.warnings.length;\n  const score = report.complianceScore;\n  \n  report.summary = `Design compliance score: ${score}/100. `;\n  if (violations > 0) {\n    report.summary += `Found ${violations} critical violation${violations > 1 ? 's' : ''} that must be fixed. `;\n  }\n  if (warnings > 0) {\n    report.summary += `${warnings} warning${warnings > 1 ? 's' : ''} to review. `;\n  }\n  if (violations === 0 && warnings === 0) {\n    report.summary += 'Design meets brand guidelines.';\n  }\n}\n\nreturn {\n  json: report\n};"
+      },
+      "id": "format-report",
+      "name": "Format Final Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "containerName": "design-reviews",
+        "blobName": "={{$json.metadata.reviewId}}.json",
+        "blobContent": "={{JSON.stringify($json, null, 2)}}",
+        "additionalFields": {
+          "contentType": "application/json"
+        }
+      },
+      "id": "save-to-azure",
+      "name": "Save Report to Azure (Optional)",
+      "type": "n8n-nodes-base.microsoftAzure",
+      "typeVersion": 2,
+      "position": [1850, 200],
+      "credentials": {
+        "microsoftAzureStorageApi": {
+          "id": "azure-storage",
+          "name": "Azure Blob Storage"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "errorMessage": "=Invalid request. Missing required fields: imageFile or brandId."
+      },
+      "id": "validation-error",
+      "name": "Validation Error",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [650, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Fetch Brand Standards from Azure",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Brand Standards from Azure": {
+      "main": [
+        [
+          {
+            "node": "Prepare Analysis Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Analysis Data": {
+      "main": [
+        [
+          {
+            "node": "GPT-4o Vision Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT-4o Vision Analysis": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Automated Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Automated Validation": {
+      "main": [
+        [
+          {
+            "node": "Format Final Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Final Report": {
+      "main": [
+        [
+          {
+            "node": "Save Report to Azure (Optional)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Report to Azure (Optional)": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Brand Compliance",
+      "id": "brand-compliance"
+    },
+    {
+      "name": "GPT-4o Vision",
+      "id": "gpt4o-vision"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "oad-brand-reviewer"
+  }
+}

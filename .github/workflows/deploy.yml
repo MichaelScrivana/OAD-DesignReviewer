@@ -1,0 +1,117 @@
+name: Deploy to Azure Static Web Apps
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Build and Deploy
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Build And Deploy
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "/src"
+          api_location: ""
+          output_location: ""
+
+      - name: Deployment Summary
+        run: |
+          echo "✅ Successfully deployed to Azure Static Web Apps"
+          echo "🌐 URL: https://oad-brand-reviewer.azurestaticapps.net"
+
+  close_pull_request:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request
+    steps:
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: "close"
+
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint Code
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Validate HTML
+        run: |
+          npm install -g htmlhint
+          htmlhint src/index.html || echo "⚠️ HTML validation warnings (non-blocking)"
+
+      - name: Validate JavaScript
+        run: |
+          npm install -g eslint
+          npx eslint src/app.js --no-eslintrc --env browser --env es6 || echo "⚠️ JavaScript linting warnings (non-blocking)"
+
+  test:
+    runs-on: ubuntu-latest
+    name: Test Application
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Test static file serving
+        run: |
+          npm install -g http-server
+          http-server src -p 8080 &
+          sleep 5
+          curl -f http://localhost:8080/index.html || exit 1
+          echo "✅ Static files serving correctly"
+
+      - name: Test file structure
+        run: |
+          test -f src/index.html || (echo "❌ Missing index.html" && exit 1)
+          test -f src/styles.css || (echo "❌ Missing styles.css" && exit 1)
+          test -f src/app.js || (echo "❌ Missing app.js" && exit 1)
+          echo "✅ All required files present"
+
+  notify:
+    if: always()
+    needs: [build_and_deploy, lint, test]
+    runs-on: ubuntu-latest
+    name: Notify Deployment Status
+    steps:
+      - name: Send notification
+        run: |
+          if [ "${{ needs.build_and_deploy.result }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+            echo "📊 Commit: ${{ github.sha }}"
+            echo "👤 Author: ${{ github.actor }}"
+            echo "📝 Message: ${{ github.event.head_commit.message }}"
+          else
+            echo "❌ Deployment failed!"
+            echo "Please check the logs for more information."
+          fi
