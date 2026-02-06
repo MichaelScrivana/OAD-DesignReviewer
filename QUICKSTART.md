@@ -4,21 +4,27 @@ Get your OAD Brand Review Assistant up and running in **under 30 minutes**!
 
 ---
 
-## ⚡ 5-Minute Setup (Local Testing)
+## ⚡ 5-Minute Local Setup
 
 ```bash
-# 1. Navigate to project
-cd /workspaces/OAD-DesignReviewer
+# 1. Clone and setup
+git clone https://github.com/MichaelScrivana/OAD-DesignReviewer.git
+cd OAD-DesignReviewer
 
-# 2. Test web app locally
-cd src
-npx serve
+# 2. Run automated setup
+./setup.sh
 
-# 3. Open browser
+# 3. Configure your Foundry agent (see Step 2 below)
+
+# 4. Start the servers
+npm start &  # API server on port 3001
+cd src && npx serve  # Frontend on port 3000
+
+# 5. Open browser
 # Visit: http://localhost:3000
 ```
 
-**Note**: Local testing will show the UI but API calls will fail until n8n is configured.
+**Note**: For full functionality, you need to configure Azure AI Foundry. Local testing will show the UI but API calls will fail until Foundry is set up.
 
 ---
 
@@ -26,142 +32,161 @@ npx serve
 
 Before deploying, you need:
 
-- [ ] **OpenAI API Key** → [Get one here](https://platform.openai.com/api-keys)
 - [ ] **Azure Account** → [Sign up](https://azure.microsoft.com/free/)
-- [ ] **n8n Account** → [Sign up](https://n8n.io) (Cloud or self-host)
-- [ ] **GitHub Account** → [Sign up](https://github.com)
+- [ ] **Azure AI Foundry Resource** → Create in Azure Portal
+- [ ] **Azure OpenAI Resource** → With GPT-4o deployment
+- [ ] **Foundry Agent** → Created with brand compliance instructions
+- [ ] **Node.js 18+** → [Download](https://nodejs.org/)
 
 ---
 
-## 🎯 Step-by-Step Deployment
+## 🎯 Step-by-Step Setup
 
-### Step 1: Set Up Azure (10 minutes)
+### Step 1: Azure AI Foundry Setup (10 minutes)
+
+1. **Create Azure AI Foundry Resource**:
+   ```bash
+   az cognitiveservices account create \
+     --name "oad-ai-foundry" \
+     --resource-group "rg-oad-brand-reviewer" \
+     --kind "AIServices" \
+     --sku "S0" \
+     --location "eastus"
+   ```
+
+2. **Create Azure OpenAI Resource**:
+   ```bash
+   az cognitiveservices account create \
+     --name "oad-openai" \
+     --resource-group "rg-oad-brand-reviewer" \
+     --kind "OpenAI" \
+     --sku "S0" \
+     --location "eastus"
+   ```
+
+3. **Deploy GPT-4o Model**:
+   - Go to [Azure AI Foundry](https://ai.azure.com)
+   - Select your resource
+   - Go to "Models" → "Deployments"
+   - Deploy GPT-4o model
+
+### Step 2: Create Foundry Agent (5 minutes)
+
+1. **Open Azure AI Foundry Studio** → https://ai.azure.com
+
+2. **Create New Project**:
+   - Name: "OAD Brand Review"
+   - Resource: Your AI Foundry resource
+
+3. **Create Agent**:
+   - Go to "Playground" → "Agents"
+   - Click "Create agent"
+   - Name: "OAD Brand Compliance Agent"
+   - Instructions:
+     ```
+     You are an expert brand compliance reviewer for Bayer's One A Day (OAD) vitamin brand.
+
+     Your task is to analyze design images and check them against OAD brand guidelines:
+
+     BRAND COLORS:
+     - Primary: #FF6600 (Orange)
+     - Secondary: #333333 (Dark Gray)
+     - Accent: #F5F5F5 (Light Gray)
+     - Neutral: #FFFFFF (White), #000000 (Black)
+
+     LOGO REQUIREMENTS:
+     - Minimum width: 120px
+     - Minimum height: 60px
+     - Clear space: 20px around logo
+     - No modifications to logo design
+
+     TYPOGRAPHY:
+     - Primary font: Helvetica Neue
+     - Approved weights: 300, 400, 500, 700
+     - Minimum size: 14px for accessibility
+
+     ACCESSIBILITY:
+     - WCAG AA contrast ratio: 4.5:1 minimum
+     - Color combinations must meet contrast requirements
+
+     When analyzing a design:
+     1. Examine the image for logo usage, colors, fonts, and layout
+     2. Check compliance against all guidelines
+     3. Provide a compliance score (0-100)
+     4. List specific violations, warnings, and recommendations
+     5. Be specific and actionable in your feedback
+     ```
+
+4. **Copy Agent Details**:
+   - Copy the **Agent ID** (looks like: `asst_...`)
+   - Copy the **Project Endpoint** (format: `https://your-resource.services.ai.azure.com/api/projects/your-project-name`)
+
+### Step 3: Configure Application (2 minutes)
+
+**Option A: Environment Variables (Recommended)**
 
 ```bash
-# Create storage account
- az storage account create\
-  --name oadbrandstorage \
-  --resource-group rg-oad-brand-reviewer \
-  --location eastus \
-  --sku Standard_LRS
+# Copy template
+cp .env.example .env
 
-# Create containers
-az storage container create --name brand-config --account-name oadbrandstorage
-az storage container create --name design-uploads --account-name oadbrandstorage
-az storage container create --name design-reviews --account-name oadbrandstorage
-
-# Upload brand standards
-az storage blob upload \
-  --account-name oadbrandstorage \
-  --container-name brand-config \
-  --name oad-design-standards.json \
-  --file ./azure/oad-design-standards.json
-
-# Generate SAS token (1 year expiry)
-az storage blob generate-sas \
-  --account-name oadbrandstorage \
-  --container-name brand-config \
-  --name oad-design-standards.json \
-  --permissions r \
-  --expiry $(date -u -d "+1 year" '+%Y-%m-%dT%H:%MZ') \
-  --https-only \
-  --full-uri
+# Edit .env with your values
+FOUNDRY_ENDPOINT=https://your-foundry-resource.services.ai.azure.com/api/projects/your-project-name
+FOUNDRY_AGENT_ID=your-agent-id-here
+AZURE_OPENAI_ENDPOINT=https://your-openai-resource.openai.azure.com
+AZURE_OPENAI_DEPLOYMENT=gpt-4o
+AZURE_OPENAI_API_KEY=your-api-key-here
 ```
 
-**Save the SAS URL** - you'll need it for n8n!
+**Option B: Direct Configuration**
 
----
-
-### Step 2: Import n8n Workflow (5 minutes)
-
-1. **Log in to n8n** → https://app.n8n.cloud (or your self-hosted instance)
-2. **Import workflow**:
-   - Click **Workflows** → **Import from File**
-   - Select `n8n/design-review-workflow.json`
-   - Click **Import**
-3. **Configure credentials**:
-   - **OpenAI API**: Add your API key
-   - **Azure Blob SAS URL**: Paste SAS URL from Step 1
-4. **Copy webhook URL**:
-   - Click on "Webhook Trigger" node
-   - Copy the URL (e.g., `https://your-n8n.com/webhook/design-review`)
-5. **Activate workflow**: Toggle the switch to "Active"
-
----
-
-### Step 3: Update Web App Configuration (2 minutes)
-
-Edit `src/app.js` (line 10):
+Edit `src/app.js` and update the CONFIG object:
 
 ```javascript
 const CONFIG = {
-    n8nWebhookUrl: 'https://your-n8n.com/webhook/design-review', // ← PASTE YOUR WEBHOOK URL HERE
+    // Foundry Agent Configuration
+    foundryEndpoint: 'https://your-foundry-resource.services.ai.azure.com/api/projects/your-project-name',
+    agentId: 'your-agent-id-here',
+    azureOpenaiEndpoint: 'https://your-openai-resource.openai.azure.com',
+    azureOpenaiDeployment: 'gpt-4o',
+
+    // File constraints
     maxFileSize: 10 * 1024 * 1024,
-    allowedFileTypes: ['image/png', 'image/jpeg', 'image/svg+xml']
+    allowedFileTypes: ['image/png', 'image/jpeg', 'image/svg+xml'],
+    apiTimeout: 120000
 };
 ```
 
-**Save the file!**
+### Step 4: Test End-to-End (3 minutes)
 
----
+1. **Start the API server**:
+   ```bash
+   npm start
+   ```
 
-### Step 4: Deploy Web App (5 minutes)
+2. **Start the frontend** (in another terminal):
+   ```bash
+   cd src
+   npx serve
+   ```
 
-**Option A: GitHub Pages (Easiest)**
+3. **Open browser**: http://localhost:3000
 
-```bash
-# Push to GitHub
-git add .
-git commit -m "Initial deployment"
-git push origin main
+4. **Test the system**:
+   - Upload a sample design image (PNG/JPG)
+   - Select brand: "One A Day"
+   - Select design type: "Social Media Post"
+   - Enter your email
+   - Click "Analyze Design"
+   - Wait 10-30 seconds for Foundry agent response
+   - View compliance report with score, violations, warnings
 
-# Enable GitHub Pages
-# Go to: Settings → Pages → Source: main → /src → Save
-```
-
-**Your site**: `https://[username].github.io/OAD-DesignReviewer/`
-
-**Option B: Azure Static Web Apps**
-
-```bash
-# Create Static Web App
-az staticwebapp create \
-  --name oad-brand-reviewer \
-  --resource-group rg-oad-brand-reviewer \
-  --location eastus \
-  --source https://github.com/[username]/OAD-DesignReviewer \
-  --branch main \
-  --app-location "/src"
-```
-
-**Your site**: `https://oad-brand-reviewer.azurestaticapps.net`
-
----
-
-### Step 5: Test End-to-End (3 minutes)
-
-1. **Open your deployed web app**
-2. **Upload a sample image** (PNG/JPG)
-3. **Select**:
-   - Brand: "One A Day"
-   - Design Type: "Social Media Post"
-   - Email: your email
-4. **Click "Analyze Design"**
-5. **Wait 10-30 seconds**
-6. **View compliance report** with score, violations, warnings
-
-**Expected result**: You should see a detailed compliance report with:
-- Compliance score (0-100)
-- Critical violations
-- Warnings
-- Recommendations
-- Detailed findings (logo, colors, typography, accessibility)
+**Expected result**: You should see a detailed compliance report analyzed by your Foundry agent!
 
 ---
 
 ## 🧪 Testing with Mock Data
 
-To test the UI without backend setup:
+To test the UI without Foundry setup:
 
 ```javascript
 // Open browser console on the web app
@@ -174,31 +199,34 @@ This will populate the results section with sample data.
 
 ## 🔧 Troubleshooting
 
-### Issue: "Failed to analyze design"
+### Issue: "Failed to call Foundry agent"
 
 **Fix**:
-1. Check n8n workflow is **Active**
-2. Verify webhook URL in `app.js` is correct
-3. Test webhook directly:
-   ```bash
-   curl -X POST https://your-n8n.com/webhook/design-review \
-     -H "Content-Type: application/json" \
-     -d '{"brandId":"OAD","designType":"test","submittedBy":"test@test.com","imageFile":"test","imageMimeType":"image/png","imageName":"test.png"}'
-   ```
+1. Check your `.env` file has correct values
+2. Verify your Foundry agent is active in Azure AI Studio
+3. Check Azure OpenAI endpoint and API key
+4. Test the API server health: http://localhost:3001/health
+
+### Issue: "Agent not responding"
+
+**Fix**:
+1. Check your agent ID is correct
+2. Verify the project endpoint URL
+3. Ensure your Azure account has access to the Foundry resource
+4. Check Azure OpenAI deployment is active
 
 ### Issue: CORS errors
 
 **Fix**:
-1. In n8n, check "Respond to Webhook" node has CORS headers:
-   - `Access-Control-Allow-Origin: *`
-   - `Access-Control-Allow-Methods: POST, OPTIONS`
-
-### Issue: SAS token expired
-
-**Fix**:
-1. Generate new SAS token (see Step 1)
-2. Update URL in n8n "Fetch Brand Standards" node
-3. Save workflow
+1. The API server includes CORS headers by default
+2. If deploying separately, ensure CORS is configured:
+   ```javascript
+   app.use(cors({
+     origin: 'http://localhost:3000', // or your frontend URL
+     methods: ['POST', 'GET'],
+     allowedHeaders: ['Content-Type']
+   }));
+   ```
 
 ---
 
@@ -206,11 +234,12 @@ This will populate the results section with sample data.
 
 ```
 ✅ Static web app (HTML/CSS/JS)
-✅ n8n workflow (AI orchestration)
-✅ Azure configuration (storage setup)
-✅ Complete documentation (architecture, user guide, admin guide)
-✅ GitHub Actions CI/CD pipeline
-✅ Brand standards JSON (OAD guidelines)
+✅ Node.js API server (Foundry proxy)
+✅ Azure AI Foundry agent integration
+✅ Comprehensive documentation
+✅ Automated setup script
+✅ Environment configuration
+✅ CI/CD pipeline ready
 ```
 
 ---
@@ -219,17 +248,17 @@ This will populate the results section with sample data.
 
 | Service | Monthly Cost |
 |---------|--------------|
+| Azure AI Foundry | $10 (S0 tier) |
+| Azure OpenAI GPT-4o | $5 (500 reviews) |
 | Azure Blob Storage | $0.20 |
-| n8n Cloud | $20 (or $0 if self-hosted) |
-| OpenAI GPT-4o | $5 (500 reviews) |
-| GitHub Pages | $0 |
-| **Total** | **~$25/month** |
+| Node.js Hosting | $0 (self-hosted) |
+| **Total** | **~$15.20/month** |
 
 ---
 
 ## 📚 Next Steps
 
-1. ✅ Deploy the application (you did it!)
+1. ✅ Set up your Foundry agent (you're here!)
 2. 📖 Read the [User Guide](docs/user-guide.md) to learn features
 3. 🔒 Review [Security Best Practices](docs/admin-guide.md#security-hardening)
 4. 📊 Set up [Monitoring & Alerts](docs/admin-guide.md#monitoring--maintenance)
@@ -242,8 +271,9 @@ This will populate the results section with sample data.
 **Technical Issues**:
 - GitHub Issues: https://github.com/MichaelScrivana/OAD-DesignReviewer/issues
 
-**Brand Guidelines Questions**:
-- Email: brand-team@bayer.com
+**Azure AI Foundry**:
+- Documentation: https://learn.microsoft.com/azure/ai-studio
+- Support: https://azure.microsoft.com/support/
 
 **Project-Specific Questions**:
 - Email: michael.scrivana@bayer.com
@@ -252,10 +282,10 @@ This will populate the results section with sample data.
 
 ## 🎉 Success!
 
-You've successfully deployed the OAD Brand Review Assistant! 
+You've successfully integrated Azure AI Foundry with your OAD Brand Review Assistant!
 
 **Share your feedback** and **report issues** to help us improve the system.
 
 ---
 
-**Built with ❤️ at Bayer | Powered by n8n + GPT-4o Vision**
+**Built with ❤️ at Bayer | Powered by Azure AI Foundry**

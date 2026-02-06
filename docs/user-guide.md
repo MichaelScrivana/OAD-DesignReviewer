@@ -424,13 +424,13 @@ A: Yes, it's available in the project repository at `azure/oad-design-standards.
 ### Issue: "Failed to analyze design. Please try again."
 
 **Possible Causes**:
-1. n8n workflow is down
-2. OpenAI API is unavailable
+1. Azure AI Foundry agent is unavailable
+2. Azure OpenAI API is down
 3. Network connectivity issue
 
 **Solutions**:
 1. Wait 1-2 minutes and try again
-2. Check project status page (if available)
+2. Check Azure service status: https://status.azure.com
 3. Contact support if issue persists
 
 ### Issue: "Invalid request. Missing required fields."

@@ -1,0 +1,227 @@
+{
+  "brandId": "OAD",
+  "brandName": "One A Day",
+  "version": "3.0",
+  "lastUpdated": "2026-02-06",
+  "sourceDocument": "OAD Brand Book_07.22.25.pdf",
+
+  "gradingScale": {
+    "maxScore": 100,
+    "passThreshold": 70,
+    "grades": [
+      {"grade": "A+", "minScore": 97, "maxScore": 100, "status": "APPROVED", "label": "Exceptional - Fully Approved", "color": "#22C55E"},
+      {"grade": "A", "minScore": 93, "maxScore": 96, "status": "APPROVED", "label": "Excellent - Fully Approved", "color": "#22C55E"},
+      {"grade": "A-", "minScore": 90, "maxScore": 92, "status": "APPROVED", "label": "Very Good - Approved", "color": "#22C55E"},
+      {"grade": "B+", "minScore": 87, "maxScore": 89, "status": "APPROVED", "label": "Good - Approved", "color": "#84CC16"},
+      {"grade": "B", "minScore": 83, "maxScore": 86, "status": "APPROVED", "label": "Solid - Approved", "color": "#84CC16"},
+      {"grade": "B-", "minScore": 80, "maxScore": 82, "status": "APPROVED_WITH_NOTES", "label": "Acceptable - Approved with Notes", "color": "#84CC16"},
+      {"grade": "C+", "minScore": 77, "maxScore": 79, "status": "APPROVED_WITH_NOTES", "label": "Fair - Conditional Approval", "color": "#EAB308"},
+      {"grade": "C", "minScore": 73, "maxScore": 76, "status": "APPROVED_WITH_NOTES", "label": "Needs Work - Conditional Approval", "color": "#EAB308"},
+      {"grade": "C-", "minScore": 70, "maxScore": 72, "status": "NEEDS_REVISION", "label": "Minimum Standard - Revisions Recommended", "color": "#EAB308"},
+      {"grade": "D+", "minScore": 67, "maxScore": 69, "status": "NEEDS_REVISION", "label": "Below Standard - Revisions Required", "color": "#F97316"},
+      {"grade": "D", "minScore": 63, "maxScore": 66, "status": "NEEDS_REVISION", "label": "Poor - Major Revisions Required", "color": "#F97316"},
+      {"grade": "D-", "minScore": 60, "maxScore": 62, "status": "REJECTED", "label": "Very Poor - Rework Required", "color": "#EF4444"},
+      {"grade": "F", "minScore": 0, "maxScore": 59, "status": "REJECTED", "label": "Failing - Complete Rework Required", "color": "#EF4444"}
+    ]
+  },
+
+  "categories": {
+    "logo": {
+      "weight": 20,
+      "description": "Logo usage, placement, and integrity",
+      "maxPoints": 20,
+      "criticalFailure": true,
+      "criticalFailureMessage": "Logo violations can result in automatic failure",
+      "rules": {
+        "LOGO-001": {"points": 5, "failType": "critical", "description": "Logo presence"},
+        "LOGO-002": {"points": 4, "failType": "critical", "description": "Logo integrity (no distortion)"},
+        "LOGO-003": {"points": 2, "failType": "major", "description": "Minimum size - digital"},
+        "LOGO-004": {"points": 2, "failType": "major", "description": "Minimum size - print"},
+        "LOGO-005": {"points": 3, "failType": "major", "description": "Clear space"},
+        "LOGO-006": {"points": 2, "failType": "critical", "description": "Approved color versions"},
+        "LOGO-007": {"points": 1, "failType": "major", "description": "Background contrast"},
+        "LOGO-008": {"points": 1, "failType": "minor", "description": "No effects applied"}
+      }
+    },
+    "colors": {
+      "weight": 20,
+      "description": "Color palette compliance and usage",
+      "maxPoints": 20,
+      "criticalFailure": true,
+      "criticalFailureMessage": "Using non-brand colors can result in automatic failure",
+      "rules": {
+        "COLOR-001": {"points": 8, "failType": "critical", "description": "Approved palette only"},
+        "COLOR-002": {"points": 4, "failType": "major", "description": "Primary color presence"},
+        "COLOR-003": {"points": 3, "failType": "minor", "description": "Color hierarchy"},
+        "COLOR-004": {"points": 3, "failType": "major", "description": "Color accuracy"},
+        "COLOR-005": {"points": 2, "failType": "major", "description": "No prohibited colors"}
+      }
+    },
+    "typography": {
+      "weight": 18,
+      "description": "Font usage, sizing, and hierarchy",
+      "maxPoints": 18,
+      "criticalFailure": false,
+      "rules": {
+        "TYPE-001": {"points": 4, "failType": "major", "description": "Approved font family"},
+        "TYPE-002": {"points": 2, "failType": "minor", "description": "Approved font weights"},
+        "TYPE-003": {"points": 4, "failType": "critical", "description": "Minimum body text size"},
+        "TYPE-004": {"points": 3, "failType": "critical", "description": "Minimum caption size"},
+        "TYPE-005": {"points": 2, "failType": "major", "description": "Heading hierarchy"},
+        "TYPE-006": {"points": 1, "failType": "minor", "description": "Line height"},
+        "TYPE-007": {"points": 1, "failType": "minor", "description": "Line length"},
+        "TYPE-008": {"points": 1, "failType": "minor", "description": "Text alignment"}
+      }
+    },
+    "accessibility": {
+      "weight": 22,
+      "description": "WCAG 2.1 AA compliance",
+      "maxPoints": 22,
+      "criticalFailure": true,
+      "criticalFailureMessage": "Accessibility failures can result in legal issues and automatic rejection",
+      "rules": {
+        "A11Y-001": {"points": 5, "failType": "critical", "description": "Normal text contrast (4.5:1)"},
+        "A11Y-002": {"points": 4, "failType": "critical", "description": "Large text contrast (3:1)"},
+        "A11Y-003": {"points": 3, "failType": "major", "description": "UI component contrast"},
+        "A11Y-004": {"points": 3, "failType": "critical", "description": "Minimum text size"},
+        "A11Y-005": {"points": 2, "failType": "major", "description": "Color independence"},
+        "A11Y-006": {"points": 2, "failType": "major", "description": "Touch target size"},
+        "A11Y-007": {"points": 2, "failType": "minor", "description": "Focus indicators"},
+        "A11Y-008": {"points": 1, "failType": "minor", "description": "Image alt text"}
+      }
+    },
+    "imagery": {
+      "weight": 12,
+      "description": "Photography quality and brand alignment",
+      "maxPoints": 12,
+      "criticalFailure": false,
+      "rules": {
+        "IMG-001": {"points": 3, "failType": "major", "description": "Image quality/resolution"},
+        "IMG-002": {"points": 2, "failType": "major", "description": "Authentic representation"},
+        "IMG-003": {"points": 2, "failType": "major", "description": "Brand tone alignment"},
+        "IMG-004": {"points": 1, "failType": "minor", "description": "Lighting quality"},
+        "IMG-005": {"points": 2, "failType": "major", "description": "Diversity & inclusion"},
+        "IMG-006": {"points": 2, "failType": "critical", "description": "Product photography accuracy"}
+      }
+    },
+    "layout": {
+      "weight": 8,
+      "description": "Layout, spacing, and visual hierarchy",
+      "maxPoints": 8,
+      "criticalFailure": false,
+      "rules": {
+        "LAYOUT-001": {"points": 1, "failType": "minor", "description": "Logo placement"},
+        "LAYOUT-002": {"points": 1, "failType": "minor", "description": "Grid system adherence"},
+        "LAYOUT-003": {"points": 2, "failType": "major", "description": "Visual hierarchy"},
+        "LAYOUT-004": {"points": 1, "failType": "minor", "description": "Whitespace"},
+        "LAYOUT-005": {"points": 2, "failType": "major", "description": "CTA prominence"},
+        "LAYOUT-006": {"points": 1, "failType": "minor", "description": "Content margins"}
+      }
+    }
+  },
+
+  "failureRules": {
+    "criticalFailure": {
+      "description": "Any critical failure in logo, colors, or accessibility results in automatic rejection",
+      "autoFail": true,
+      "maxGrade": "F",
+      "categories": ["logo", "colors", "accessibility"]
+    },
+    "majorFailures": {
+      "description": "3 or more major failures caps the grade at C",
+      "threshold": 3,
+      "maxGrade": "C"
+    },
+    "minorFailures": {
+      "description": "5 or more minor failures caps the grade at B",
+      "threshold": 5,
+      "maxGrade": "B"
+    }
+  },
+
+  "bonusPoints": {
+    "maxBonus": 5,
+    "description": "Bonus points for exceptional work beyond requirements",
+    "criteria": [
+      {
+        "id": "BONUS-001",
+        "name": "Exceptional Creativity",
+        "points": 2,
+        "description": "Design shows creative excellence while maintaining brand consistency"
+      },
+      {
+        "id": "BONUS-002",
+        "name": "Accessibility Excellence",
+        "points": 2,
+        "description": "Exceeds WCAG AA requirements (approaches AAA compliance)"
+      },
+      {
+        "id": "BONUS-003",
+        "name": "Innovative Brand Expression",
+        "points": 1,
+        "description": "Fresh, modern interpretation of brand guidelines"
+      }
+    ]
+  },
+
+  "outputFormat": {
+    "description": "Required JSON structure for AI review responses",
+    "required": [
+      "score",
+      "grade",
+      "status",
+      "summary",
+      "categories",
+      "violations",
+      "recommendations"
+    ],
+    "schema": {
+      "score": {
+        "type": "number",
+        "range": [0, 100],
+        "description": "Overall compliance score"
+      },
+      "grade": {
+        "type": "string",
+        "values": ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F"],
+        "description": "Letter grade based on score"
+      },
+      "status": {
+        "type": "string",
+        "values": ["APPROVED", "APPROVED_WITH_NOTES", "NEEDS_REVISION", "REJECTED"],
+        "description": "Approval status"
+      },
+      "summary": {
+        "type": "string",
+        "description": "2-3 sentence overview of review findings"
+      },
+      "categories": {
+        "type": "object",
+        "description": "Score breakdown by category",
+        "schema": {
+          "logo": {"score": "number (0-20)", "findings": "array"},
+          "colors": {"score": "number (0-20)", "findings": "array"},
+          "typography": {"score": "number (0-18)", "findings": "array"},
+          "accessibility": {"score": "number (0-22)", "findings": "array"},
+          "imagery": {"score": "number (0-12)", "findings": "array"},
+          "layout": {"score": "number (0-8)", "findings": "array"}
+        }
+      },
+      "violations": {
+        "type": "array",
+        "description": "List of all rule violations found",
+        "itemSchema": {
+          "ruleId": "string (e.g., LOGO-001)",
+          "category": "string",
+          "severity": "string (critical | major | minor)",
+          "description": "string",
+          "recommendation": "string"
+        }
+      },
+      "recommendations": {
+        "type": "array",
+        "description": "Prioritized list of improvement suggestions"
+      }
+    }
+  }
+}

@@ -26,17 +26,17 @@ This guide is for system administrators, DevOps engineers, and technical leads r
 
 | Service | Purpose | Tier/Plan |
 |---------|---------|-----------|
-| **Azure Account** | Blob Storage for data | Pay-as-you-go or Enterprise |
-| **n8n** | Workflow orchestration | Cloud ($20/mo) or Self-hosted |
-| **OpenAI** | GPT-4o Vision API | Pay-per-use (~$0.01/image) |
+| **Azure Account** | AI Foundry, OpenAI, Blob Storage | Pay-as-you-go or Enterprise |
+| **Azure AI Foundry** | Agent orchestration | S0 tier ($10/mo) |
+| **Azure OpenAI** | GPT-4o Vision API | Pay-per-use (~$0.01/image) |
 | **GitHub** | Version control & CI/CD | Free (public) or Enterprise |
 | **Domain/DNS** | Custom domain (optional) | Any DNS provider |
 
 ### Required Access & Permissions
 
 - **Azure**: Contributor role on subscription
-- **n8n Cloud**: Owner/Admin access
-- **OpenAI**: API key with GPT-4o access
+- **Azure AI Foundry**: Project owner access
+- **Azure OpenAI**: API key with GPT-4o access
 - **GitHub**: Write access to repository
 
 ### Tools & CLIs
@@ -52,10 +52,7 @@ brew install gh  # macOS
 # or
 sudo apt install gh  # Linux
 
-# n8n CLI (optional, for self-hosted)
-npm install -g n8n
-
-# Node.js (for local testing)
+# Node.js (for API server)
 nvm install 18
 nvm use 18
 ```
@@ -64,12 +61,12 @@ nvm use 18
 
 ## Deployment Options
 
-### Option 1: Azure Static Web Apps (Recommended)
+### Option 1: Azure Static Web Apps + Azure App Service (Recommended)
 
-**Pros**: Free tier, auto-scales, integrated CI/CD, custom domains  
-**Cons**: Limited to static content only
+**Pros**: Integrated CI/CD, auto-scaling, custom domains, managed services  
+**Cons**: More complex setup than static-only
 
-#### Step 1: Create Static Web App
+#### Step 1: Deploy Frontend (Static Web App)
 
 ```bash
 # Variables
@@ -88,28 +85,75 @@ az staticwebapp create \
   --login-with-github
 ```
 
-#### Step 2: Configure Custom Domain (Optional)
+#### Step 2: Deploy Backend (App Service)
 
 ```bash
-# Add custom domain
+# Create App Service Plan
+az appservice plan create \
+  --name oad-api-plan \
+  --resource-group $RESOURCE_GROUP \
+  --location $LOCATION \
+  --sku B1 \
+  --is-linux
+
+# Create Web App
+az webapp create \
+  --name oad-brand-api \
+  --resource-group $RESOURCE_GROUP \
+  --plan oad-api-plan \
+  --runtime "NODE:18-lts"
+
+# Configure deployment
+az webapp config appsettings set \
+  --name oad-brand-api \
+  --resource-group $RESOURCE_GROUP \
+  --setting SCM_DO_BUILD_DURING_DEPLOYMENT=true
+
+# Deploy from GitHub
+az webapp deployment github-actions add \
+  --repo "https://github.com/MichaelScrivana/OAD-DesignReviewer" \
+  --branch main \
+  --name oad-brand-api \
+  --resource-group $RESOURCE_GROUP \
+  --build-path "." \
+  --login-with-github
+```
+
+#### Step 3: Configure Environment Variables
+
+```bash
+# Set Foundry and OpenAI configuration
+az webapp config appsettings set \
+  --name oad-brand-api \
+  --resource-group $RESOURCE_GROUP \
+  --setting FOUNDRY_ENDPOINT="https://your-foundry-resource.services.ai.azure.com/api/projects/your-project-name" \
+  --setting FOUNDRY_AGENT_ID="your-agent-id" \
+  --setting AZURE_OPENAI_ENDPOINT="https://your-openai-resource.openai.azure.com" \
+  --setting AZURE_OPENAI_API_KEY="your-api-key" \
+  --setting AZURE_OPENAI_DEPLOYMENT="gpt-4o"
+```
+
+#### Step 4: Configure Custom Domain (Optional)
+
+```bash
+# Add custom domain to frontend
 az staticwebapp hostname set \
   --name $APP_NAME \
   --resource-group $RESOURCE_GROUP \
   --hostname brand-review.bayer.com
+
+# Add custom domain to backend
+az webapp config hostname add \
+  --webapp-name oad-brand-api \
+  --resource-group $RESOURCE_GROUP \
+  --hostname api.brand-review.bayer.com
 ```
 
 **DNS Configuration**:
 ```
 CNAME: brand-review.bayer.com → oad-brand-reviewer.azurestaticapps.net
+CNAME: api.brand-review.bayer.com → oad-brand-api.azurewebsites.net
 ```
-
-#### Step 3: Set Environment Variables
-
-In Azure Portal:
-1. Go to **Static Web App** → **Configuration**
-2. Add:
-   - `N8N_WEBHOOK_URL`: Your n8n webhook URL
-3. Save
 
 ---
 
@@ -318,24 +362,39 @@ az keyvault secret show \
 
 ### Application Monitoring
 
-#### n8n Workflow Monitoring
+#### Azure AI Foundry Agent Monitoring
 
-**Execution Dashboard**:
-1. Go to n8n → **Executions**
+**Agent Performance**:
+1. Go to Azure AI Foundry Studio → **Projects**
 2. Monitor:
+   - Agent response times
    - Success/failure rates
-   - Execution duration
-   - Error messages
+   - Token usage and costs
 
 **Set Up Alerts**:
-```javascript
-// In n8n workflow, add Error Trigger node
-{
-  "parameters": {
-    "errorWorkflow": "alert-on-error-workflow-id"
-  }
-}
+```bash
+# Create metric alert for agent failures
+az monitor metrics alert create \
+  --name "foundry-agent-failures" \
+  --resource-group $RESOURCE_GROUP \
+  --scopes "/subscriptions/.../resourceGroups/.../providers/Microsoft.CognitiveServices/accounts/your-foundry-resource" \
+  --condition "count > 5 where ResultType == 'Failed'" \
+  --description "Alert when Foundry agent has more than 5 failures in 5 minutes"
 ```
+
+#### Azure App Service Monitoring
+
+**API Server Health**:
+1. Go to Azure Portal → **App Services** → **oad-brand-api**
+2. Monitor:
+   - CPU/Memory usage
+   - Response times
+   - Error rates
+   - Request counts
+
+**Health Check Endpoint**:
+- URL: `https://your-api-url/health`
+- Expected response: `{"status":"healthy","timestamp":"..."}`
 
 #### Azure Application Insights
 
@@ -693,14 +752,30 @@ az storage account blob-service-properties update \
 | Service | Usage | Cost (USD) |
 |---------|-------|------------|
 | **Azure Static Web Apps** | 100GB bandwidth | $0 (free tier) |
+| **Azure App Service** | B1 plan (API server) | $13.14 |
+| **Azure AI Foundry** | S0 tier | $10 |
+| **Azure OpenAI GPT-4o** | 500 reviews (~$0.01 each) | $5 |
 | **Azure Blob Storage** | 10GB storage + 10k operations | $0.20 |
-| **n8n Cloud** | 5 workflows, 2k executions | $20 |
-| **OpenAI GPT-4o** | 500 reviews (~$0.01 each) | $5 |
-| **Total** | | **~$25/month** |
+| **Total** | | **~$28.34/month** |
 
 ### Cost Optimization Tips
 
-1. **Azure Blob Storage**:
+1. **Azure App Service**:
+   - Use B1 plan for development/testing
+   - Scale to P1V2+ for production with high traffic
+   - Enable auto-scaling based on CPU/memory
+
+2. **Azure AI Foundry**:
+   - S0 tier includes 10M tokens/month
+   - Monitor token usage in Azure Portal
+   - Implement caching for repeated brand guideline queries
+
+3. **Azure OpenAI**:
+   - Use GPT-4o Vision for image analysis
+   - Implement response caching to reduce API calls
+   - Monitor usage in Azure Portal → OpenAI resource
+
+4. **Azure Blob Storage**:
    - Use lifecycle policies to archive old reports
    ```bash
    az storage account management-policy create \
@@ -724,69 +799,45 @@ az storage account blob-service-properties update \
      }'
    ```
 
-2. **n8n**:
-   - Self-host on Azure Container Instances (cheaper than Cloud plan)
-   - Cache brand standards to reduce Azure API calls
-
-3. **OpenAI**:
-   - Use lower `max_tokens` for simpler analyses
-   - Implement caching for duplicate images
-
 ---
 
 ## Scaling Strategies
 
 ### Horizontal Scaling
 
-#### n8n (Self-Hosted)
+#### Azure App Service (API Server)
 
-Deploy on Kubernetes for auto-scaling:
+Enable auto-scaling for the Node.js API server:
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: n8n
-spec:
-  replicas: 3  # Scale to 3 worker nodes
-  selector:
-    matchLabels:
-      app: n8n
-  template:
-    metadata:
-      labels:
-        app: n8n
-    spec:
-      containers:
-      - name: n8n
-        image: n8nio/n8n:latest
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "500m"
-          limits:
-            memory: "1Gi"
-            cpu: "1000m"
----
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: n8n-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: n8n
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
+```bash
+# Create auto-scaling profile
+az monitor autoscale create \
+  --resource "/subscriptions/.../resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Web/sites/oad-brand-api" \
+  --name "api-autoscale" \
+  --min-count 1 \
+  --max-count 5 \
+  --count 1
+
+# Add CPU-based scaling rule
+az monitor autoscale rule create \
+  --resource "/subscriptions/.../resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Web/sites/oad-brand-api" \
+  --autoscale-name "api-autoscale" \
+  --condition "Percentage CPU > 70 avg 5m" \
+  --scale out 1 \
+  --cooldown 5
+
+# Add scale-in rule
+az monitor autoscale rule create \
+  --resource "/subscriptions/.../resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Web/sites/oad-brand-api" \
+  --autoscale-name "api-autoscale" \
+  --condition "Percentage CPU < 30 avg 10m" \
+  --scale in 1 \
+  --cooldown 2
 ```
+
+#### Azure AI Foundry
+
+Foundry agents automatically scale with Azure infrastructure. Monitor performance in Azure Portal and adjust agent configuration as needed.
 
 ### Performance Optimization
 

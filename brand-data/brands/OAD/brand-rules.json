@@ -1,0 +1,657 @@
+{
+  "brandId": "OAD",
+  "brandName": "One A Day",
+  "version": "3.0",
+  "lastUpdated": "2026-02-06",
+  "sourceDocument": "OAD Brand Book_07.22.25.pdf",
+  "guidelinesUrl": "https://bayer-brand-portal.com/oad/guidelines",
+  "brandBookUrl": "https://bayer-brand-portal.com/oad/brandbook",
+  "assetLibraryUrl": "https://bayer-brand-portal.com/oad/assets",
+
+  "sourceReferences": {
+    "brandBook": {
+      "url": "https://bayer-brand-portal.com/oad/brandbook",
+      "localPath": "/brand-data/brands/OAD/OAD_Brand_Book.pdf",
+      "sections": {
+        "logo": { "startPage": 8, "endPage": 15, "anchor": "#logo-guidelines" },
+        "colors": { "startPage": 16, "endPage": 23, "anchor": "#color-palette" },
+        "typography": { "startPage": 24, "endPage": 31, "anchor": "#typography" },
+        "imagery": { "startPage": 32, "endPage": 39, "anchor": "#imagery" },
+        "layout": { "startPage": 40, "endPage": 47, "anchor": "#layout-grids" },
+        "accessibility": { "startPage": 48, "endPage": 52, "anchor": "#accessibility" },
+        "digital": { "startPage": 53, "endPage": 60, "anchor": "#digital-guidelines" },
+        "print": { "startPage": 61, "endPage": 68, "anchor": "#print-guidelines" }
+      }
+    },
+    "quickReference": "https://bayer-brand-portal.com/oad/quick-guide",
+    "downloadAssets": "https://bayer-brand-portal.com/oad/downloads"
+  },
+
+  "brandEssence": {
+    "tagline": "Feel Your Best",
+    "positioning": "We deliver personalized, everyday health solutions that support vitality at any life stage",
+    "targetAudience": "Adults 35-55 seeking everyday health support",
+    "toneOfVoice": {
+      "primary": ["Empowering", "Approachable", "Trustworthy"],
+      "description": "Warm, supportive, and knowledgeable without being clinical or condescending"
+    }
+  },
+
+  "logo": {
+    "description": "One A Day wordmark with distinctive styling",
+    "sourceSection": "logo",
+    "rules": [
+      {
+        "ruleId": "LOGO-001",
+        "name": "Logo Presence",
+        "requirement": "One A Day logo must be present on all brand materials",
+        "checkType": "boolean",
+        "required": true,
+        "weight": "critical",
+        "sourcePage": 8,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#logo-guidelines"
+      },
+      {
+        "ruleId": "LOGO-002",
+        "name": "Logo Integrity",
+        "requirement": "Logo must not be stretched, distorted, rotated, or modified in any way",
+        "checkType": "boolean",
+        "weight": "critical",
+        "sourcePage": 10,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#logo-integrity"
+      },
+      {
+        "ruleId": "LOGO-003",
+        "name": "Minimum Size - Digital",
+        "requirement": "Logo must be at least 120px wide for digital applications",
+        "checkType": "numeric",
+        "minValue": 120,
+        "unit": "px",
+        "weight": "critical",
+        "sourcePage": 12,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#logo-sizing"
+      },
+      {
+        "ruleId": "LOGO-004",
+        "name": "Minimum Size - Print",
+        "requirement": "Logo must be at least 1 inch (25.4mm) wide for print applications",
+        "checkType": "numeric",
+        "minValue": 25.4,
+        "unit": "mm",
+        "weight": "critical",
+        "sourcePage": 12,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#logo-sizing"
+      },
+      {
+        "ruleId": "LOGO-005",
+        "name": "Clear Space",
+        "requirement": "Maintain minimum clear space equal to the height of the 'O' in One around all sides of the logo",
+        "checkType": "proportional",
+        "reference": "height of O character",
+        "weight": "major",
+        "sourcePage": 11,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#logo-clearspace"
+      },
+      {
+        "ruleId": "LOGO-006",
+        "name": "Approved Color Versions",
+        "requirement": "Use only approved logo color versions: full color, white (reversed), or black",
+        "checkType": "enum",
+        "allowedValues": ["full-color", "white-reversed", "black"],
+        "weight": "critical",
+        "sourcePage": 13,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#logo-colors"
+      },
+      {
+        "ruleId": "LOGO-007",
+        "name": "Background Contrast",
+        "requirement": "Logo must have sufficient contrast against background - use reversed logo on dark backgrounds",
+        "checkType": "contrast",
+        "minContrast": 4.5,
+        "weight": "major",
+        "sourcePage": 14,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#logo-backgrounds"
+      },
+      {
+        "ruleId": "LOGO-008",
+        "name": "No Effects",
+        "requirement": "Do not apply shadows, glows, gradients, or other effects to the logo",
+        "checkType": "boolean",
+        "weight": "major",
+        "sourcePage": 15,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#logo-donts"
+      }
+    ],
+    "prohibitions": [
+      "Do not stretch or distort the logo",
+      "Do not rotate the logo",
+      "Do not change logo colors outside approved versions",
+      "Do not add shadows, glows, or effects",
+      "Do not place logo on busy or low-contrast backgrounds",
+      "Do not crop or partially obscure the logo",
+      "Do not rearrange logo elements",
+      "Do not outline the logo"
+    ],
+    "referenceAssets": {
+      "primary": "reference-assets/OAD-logo-primary.svg",
+      "reversed": "reference-assets/OAD-logo-white.svg",
+      "black": "reference-assets/OAD-logo-black.svg"
+    }
+  },
+
+  "colors": {
+    "description": "One A Day color palette - vibrant, energetic, and health-focused",
+    "sourceSection": "colors",
+    "rules": [
+      {
+        "ruleId": "COLOR-001",
+        "name": "Approved Palette Only",
+        "requirement": "Only use colors from the approved One A Day color palette",
+        "checkType": "color-match",
+        "weight": "critical",
+        "sourcePage": 16,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#color-palette"
+      },
+      {
+        "ruleId": "COLOR-002",
+        "name": "Primary Color Dominance",
+        "requirement": "OAD Orange (#FF6600) should be the dominant brand color in key brand moments",
+        "checkType": "presence",
+        "weight": "major",
+        "sourcePage": 17,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#primary-colors"
+      },
+      {
+        "ruleId": "COLOR-003",
+        "name": "Color Hierarchy",
+        "requirement": "Follow color hierarchy: Primary (60%), Secondary (30%), Accent (10%)",
+        "checkType": "ratio",
+        "weight": "minor",
+        "sourcePage": 18,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#color-ratios"
+      },
+      {
+        "ruleId": "COLOR-004",
+        "name": "Color Accuracy",
+        "requirement": "Colors must match exact hex/RGB values within tolerance of 5 units",
+        "checkType": "exact-match",
+        "tolerance": 5,
+        "weight": "major",
+        "sourcePage": 16,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#color-values"
+      },
+      {
+        "ruleId": "COLOR-005",
+        "name": "Prohibited Colors",
+        "requirement": "Do not use colors that conflict with brand identity or competitor colors",
+        "checkType": "exclusion",
+        "weight": "major",
+        "sourcePage": 22,
+        "sourceUrl": "https://bayer-brand-portal.com/oad/brandbook#color-donts"
+      }
+    ],
+    "palette": {
+      "primary": [
+        {
+          "name": "OAD Orange",
+          "hex": "#FF6600",
+          "rgb": {"r": 255, "g": 102, "b": 0},
+          "cmyk": {"c": 0, "m": 70, "y": 100, "k": 0},
+          "pantone": "151 C",
+          "usage": "Primary brand color, CTAs, key highlights, packaging accent"
+        }
+      ],
+      "secondary": [
+        {
+          "name": "Deep Navy",
+          "hex": "#1A2B4A",
+          "rgb": {"r": 26, "g": 43, "b": 74},
+          "usage": "Headlines, body text on light backgrounds, premium feel"
+        },
+        {
+          "name": "Warm White",
+          "hex": "#FAF9F6",
+          "rgb": {"r": 250, "g": 249, "b": 246},
+          "usage": "Primary background color, clean spaces"
+        },
+        {
+          "name": "Soft Gray",
+          "hex": "#E8E6E3",
+          "rgb": {"r": 232, "g": 230, "b": 227},
+          "usage": "Secondary backgrounds, dividers, subtle elements"
+        }
+      ],
+      "accent": [
+        {
+          "name": "Vitality Green",
+          "hex": "#7CB342",
+          "rgb": {"r": 124, "g": 179, "b": 66},
+          "usage": "Health indicators, success states, natural/wellness messaging"
+        },
+        {
+          "name": "Energy Yellow",
+          "hex": "#FFB300",
+          "rgb": {"r": 255, "g": 179, "b": 0},
+          "usage": "Highlights, energy messaging, attention-grabbing elements"
+        },
+        {
+          "name": "Trust Blue",
+          "hex": "#0277BD",
+          "rgb": {"r": 2, "g": 119, "b": 189},
+          "usage": "Links, trust indicators, clinical/science messaging"
+        }
+      ],
+      "functional": [
+        {
+          "name": "Success Green",
+          "hex": "#2E7D32",
+          "rgb": {"r": 46, "g": 125, "b": 50},
+          "usage": "Success messages, positive indicators"
+        },
+        {
+          "name": "Warning Amber",
+          "hex": "#F57C00",
+          "rgb": {"r": 245, "g": 124, "b": 0},
+          "usage": "Warning messages, caution indicators"
+        },
+        {
+          "name": "Error Red",
+          "hex": "#C62828",
+          "rgb": {"r": 198, "g": 40, "b": 40},
+          "usage": "Error messages only - never as decorative color"
+        }
+      ],
+      "neutral": [
+        {
+          "name": "Charcoal",
+          "hex": "#333333",
+          "rgb": {"r": 51, "g": 51, "b": 51},
+          "usage": "Body text, secondary text elements"
+        },
+        {
+          "name": "Medium Gray",
+          "hex": "#757575",
+          "rgb": {"r": 117, "g": 117, "b": 117},
+          "usage": "Captions, helper text, disabled states"
+        },
+        {
+          "name": "White",
+          "hex": "#FFFFFF",
+          "rgb": {"r": 255, "g": 255, "b": 255},
+          "usage": "Backgrounds, text on dark colors"
+        }
+      ]
+    },
+    "prohibitedColors": [
+      {"hex": "#FF0000", "reason": "Pure red reserved for errors only"},
+      {"hex": "#00FF00", "reason": "Lime green not on brand"},
+      {"hex": "#0000FF", "reason": "Pure blue conflicts with brand"},
+      {"hex": "#FF00FF", "reason": "Magenta not on brand"},
+      {"hex": "#800080", "reason": "Purple conflicts with competitor brands"}
+    ],
+    "colorCombinations": {
+      "recommended": [
+        {"foreground": "#1A2B4A", "background": "#FAF9F6", "usage": "Primary text"},
+        {"foreground": "#FFFFFF", "background": "#FF6600", "usage": "CTAs and buttons"},
+        {"foreground": "#333333", "background": "#FFFFFF", "usage": "Body copy"},
+        {"foreground": "#FF6600", "background": "#1A2B4A", "usage": "Accent on dark"}
+      ],
+      "avoid": [
+        {"foreground": "#FF6600", "background": "#FFB300", "reason": "Insufficient contrast"},
+        {"foreground": "#7CB342", "background": "#FF6600", "reason": "Color clash"}
+      ]
+    }
+  },
+
+  "typography": {
+    "description": "Clean, modern, highly legible typography system",
+    "rules": [
+      {
+        "ruleId": "TYPE-001",
+        "name": "Primary Font Family",
+        "requirement": "Use approved font families only: Proxima Nova (preferred) or fallbacks",
+        "checkType": "enum",
+        "allowedValues": ["Proxima Nova", "Helvetica Neue", "Helvetica", "Arial", "system-ui", "sans-serif"],
+        "weight": "major"
+      },
+      {
+        "ruleId": "TYPE-002",
+        "name": "Font Weights",
+        "requirement": "Use only approved font weights: Light (300), Regular (400), Semibold (600), Bold (700)",
+        "checkType": "enum",
+        "allowedValues": [300, 400, 600, 700],
+        "weight": "minor"
+      },
+      {
+        "ruleId": "TYPE-003",
+        "name": "Minimum Body Text Size",
+        "requirement": "Body text must be at least 16px for digital, 10pt for print",
+        "checkType": "numeric",
+        "minValue": 16,
+        "unit": "px",
+        "weight": "critical"
+      },
+      {
+        "ruleId": "TYPE-004",
+        "name": "Minimum Caption Size",
+        "requirement": "No text smaller than 12px for digital, 8pt for print",
+        "checkType": "numeric",
+        "minValue": 12,
+        "unit": "px",
+        "weight": "critical"
+      },
+      {
+        "ruleId": "TYPE-005",
+        "name": "Heading Hierarchy",
+        "requirement": "Headings must follow clear size hierarchy (H1 > H2 > H3 > H4)",
+        "checkType": "hierarchy",
+        "weight": "major"
+      },
+      {
+        "ruleId": "TYPE-006",
+        "name": "Line Height",
+        "requirement": "Body text line height should be 1.4-1.6 for optimal readability",
+        "checkType": "range",
+        "minValue": 1.4,
+        "maxValue": 1.6,
+        "weight": "minor"
+      },
+      {
+        "ruleId": "TYPE-007",
+        "name": "Line Length",
+        "requirement": "Body text line length should be 50-75 characters for optimal readability",
+        "checkType": "range",
+        "minValue": 50,
+        "maxValue": 75,
+        "unit": "characters",
+        "weight": "minor"
+      },
+      {
+        "ruleId": "TYPE-008",
+        "name": "Text Alignment",
+        "requirement": "Use left-aligned text for body copy; centered for headlines only when appropriate",
+        "checkType": "enum",
+        "allowedValues": ["left", "center"],
+        "weight": "minor"
+      }
+    ],
+    "fonts": {
+      "primary": {
+        "family": "Proxima Nova",
+        "fallbacks": ["Helvetica Neue", "Helvetica", "Arial", "system-ui", "sans-serif"],
+        "weights": {
+          "light": 300,
+          "regular": 400,
+          "semibold": 600,
+          "bold": 700
+        },
+        "usage": "All brand communications"
+      },
+      "accent": {
+        "family": "Georgia",
+        "fallbacks": ["Times New Roman", "serif"],
+        "weights": {
+          "regular": 400,
+          "italic": "400i"
+        },
+        "usage": "Pull quotes, special callouts (limited use)"
+      }
+    },
+    "scale": {
+      "display": {"size": 64, "lineHeight": 1.1, "weight": 700, "unit": "px"},
+      "h1": {"size": 48, "lineHeight": 1.2, "weight": 700, "unit": "px"},
+      "h2": {"size": 36, "lineHeight": 1.25, "weight": 600, "unit": "px"},
+      "h3": {"size": 28, "lineHeight": 1.3, "weight": 600, "unit": "px"},
+      "h4": {"size": 22, "lineHeight": 1.35, "weight": 600, "unit": "px"},
+      "h5": {"size": 18, "lineHeight": 1.4, "weight": 600, "unit": "px"},
+      "body": {"size": 16, "lineHeight": 1.5, "weight": 400, "unit": "px"},
+      "bodySmall": {"size": 14, "lineHeight": 1.5, "weight": 400, "unit": "px"},
+      "caption": {"size": 12, "lineHeight": 1.4, "weight": 400, "unit": "px"}
+    }
+  },
+
+  "accessibility": {
+    "description": "WCAG 2.1 AA compliance is mandatory for all One A Day materials",
+    "standard": "WCAG 2.1 AA",
+    "rules": [
+      {
+        "ruleId": "A11Y-001",
+        "name": "Normal Text Contrast",
+        "requirement": "Normal text (<18px or <14px bold) must have minimum 4.5:1 contrast ratio",
+        "checkType": "contrast-ratio",
+        "minValue": 4.5,
+        "weight": "critical"
+      },
+      {
+        "ruleId": "A11Y-002",
+        "name": "Large Text Contrast",
+        "requirement": "Large text (≥18px or ≥14px bold) must have minimum 3:1 contrast ratio",
+        "checkType": "contrast-ratio",
+        "minValue": 3.0,
+        "weight": "critical"
+      },
+      {
+        "ruleId": "A11Y-003",
+        "name": "UI Component Contrast",
+        "requirement": "Interactive UI components must have minimum 3:1 contrast against adjacent colors",
+        "checkType": "contrast-ratio",
+        "minValue": 3.0,
+        "weight": "major"
+      },
+      {
+        "ruleId": "A11Y-004",
+        "name": "Minimum Text Size",
+        "requirement": "No text smaller than 12px (16px preferred for body)",
+        "checkType": "numeric",
+        "minValue": 12,
+        "recommendedValue": 16,
+        "unit": "px",
+        "weight": "critical"
+      },
+      {
+        "ruleId": "A11Y-005",
+        "name": "Color Independence",
+        "requirement": "Information must not be conveyed by color alone - use icons, patterns, or text labels",
+        "checkType": "qualitative",
+        "weight": "major"
+      },
+      {
+        "ruleId": "A11Y-006",
+        "name": "Touch Target Size",
+        "requirement": "Interactive elements must have minimum 44x44px touch target",
+        "checkType": "numeric",
+        "minValue": 44,
+        "unit": "px",
+        "weight": "major"
+      },
+      {
+        "ruleId": "A11Y-007",
+        "name": "Focus Indicators",
+        "requirement": "All interactive elements must have visible focus indicators",
+        "checkType": "presence",
+        "weight": "major"
+      },
+      {
+        "ruleId": "A11Y-008",
+        "name": "Image Alt Text",
+        "requirement": "All meaningful images must have descriptive alt text",
+        "checkType": "presence",
+        "weight": "major"
+      }
+    ]
+  },
+
+  "imagery": {
+    "description": "Photography and imagery that reflects vitality, authenticity, and wellness",
+    "rules": [
+      {
+        "ruleId": "IMG-001",
+        "name": "Image Quality",
+        "requirement": "Images must be high resolution - minimum 72dpi for web, 300dpi for print",
+        "checkType": "numeric",
+        "minValue": {"web": 72, "print": 300},
+        "unit": "dpi",
+        "weight": "major"
+      },
+      {
+        "ruleId": "IMG-002",
+        "name": "Authentic Representation",
+        "requirement": "Use authentic, diverse imagery showing real people in natural settings",
+        "checkType": "qualitative",
+        "weight": "major"
+      },
+      {
+        "ruleId": "IMG-003",
+        "name": "Brand Tone Alignment",
+        "requirement": "Imagery should feel optimistic, warm, healthy, and empowering",
+        "checkType": "qualitative",
+        "weight": "major"
+      },
+      {
+        "ruleId": "IMG-004",
+        "name": "Lighting Quality",
+        "requirement": "Use natural, warm lighting - avoid harsh shadows or clinical lighting",
+        "checkType": "qualitative",
+        "weight": "minor"
+      },
+      {
+        "ruleId": "IMG-005",
+        "name": "Diversity & Inclusion",
+        "requirement": "Imagery must represent diverse ages, ethnicities, body types, and abilities",
+        "checkType": "qualitative",
+        "weight": "major"
+      },
+      {
+        "ruleId": "IMG-006",
+        "name": "Product Photography",
+        "requirement": "Product shots should be clean, well-lit, and show accurate colors",
+        "checkType": "qualitative",
+        "weight": "critical"
+      }
+    ],
+    "style": {
+      "tone": "Warm, optimistic, natural, authentic",
+      "lighting": "Natural daylight or warm artificial light",
+      "subjects": "Real people (not overly polished models), everyday wellness moments",
+      "settings": "Home, outdoors, active lifestyle environments",
+      "avoid": [
+        "Stock photo clichés",
+        "Overly clinical or medical imagery",
+        "Dark, moody, or dramatic lighting",
+        "Unrealistic body standards",
+        "Isolated product shots without context"
+      ]
+    },
+    "composition": {
+      "principles": [
+        "Use rule of thirds for dynamic compositions",
+        "Leave space for text overlay when needed",
+        "Focus on genuine moments and expressions",
+        "Include environmental context"
+      ]
+    }
+  },
+
+  "layout": {
+    "description": "Consistent layout principles for brand cohesion",
+    "rules": [
+      {
+        "ruleId": "LAYOUT-001",
+        "name": "Logo Placement",
+        "requirement": "Logo should be in top-left corner or bottom-right for most applications",
+        "checkType": "position",
+        "preferredPositions": ["top-left", "bottom-right"],
+        "weight": "minor"
+      },
+      {
+        "ruleId": "LAYOUT-002",
+        "name": "Grid System",
+        "requirement": "Use 8px base grid for all spacing and alignment",
+        "checkType": "multiple",
+        "baseUnit": 8,
+        "weight": "minor"
+      },
+      {
+        "ruleId": "LAYOUT-003",
+        "name": "Visual Hierarchy",
+        "requirement": "Establish clear visual hierarchy with size, weight, and color",
+        "checkType": "qualitative",
+        "weight": "major"
+      },
+      {
+        "ruleId": "LAYOUT-004",
+        "name": "Whitespace",
+        "requirement": "Maintain generous whitespace - designs should breathe, not feel cramped",
+        "checkType": "qualitative",
+        "weight": "minor"
+      },
+      {
+        "ruleId": "LAYOUT-005",
+        "name": "CTA Prominence",
+        "requirement": "Call-to-action must be clearly visible and prominent",
+        "checkType": "presence",
+        "weight": "major"
+      },
+      {
+        "ruleId": "LAYOUT-006",
+        "name": "Content Margins",
+        "requirement": "Maintain minimum 16px margins on mobile, 24px on desktop",
+        "checkType": "numeric",
+        "minValue": {"mobile": 16, "desktop": 24},
+        "unit": "px",
+        "weight": "minor"
+      }
+    ],
+    "spacing": {
+      "baseUnit": 8,
+      "scale": [4, 8, 12, 16, 24, 32, 48, 64, 96, 128],
+      "usage": {
+        "4": "Tight spacing, inline elements",
+        "8": "Default small spacing",
+        "16": "Default medium spacing, component padding",
+        "24": "Section padding mobile",
+        "32": "Section padding desktop",
+        "48": "Large section breaks",
+        "64": "Major section separation",
+        "96": "Hero/major section spacing"
+      }
+    }
+  },
+
+  "messaging": {
+    "description": "Brand voice and messaging guidelines",
+    "toneOfVoice": {
+      "primary": ["Empowering", "Approachable", "Trustworthy", "Optimistic"],
+      "avoid": ["Clinical", "Condescending", "Pushy", "Fear-based"]
+    },
+    "keyMessages": [
+      "Feel Your Best",
+      "Personalized nutrition for your life stage",
+      "Trusted for over 75 years",
+      "Science-backed formulations"
+    ],
+    "rules": [
+      {
+        "ruleId": "MSG-001",
+        "name": "Brand Voice Consistency",
+        "requirement": "All copy should reflect empowering, approachable, and trustworthy tone",
+        "checkType": "qualitative",
+        "weight": "major"
+      },
+      {
+        "ruleId": "MSG-002",
+        "name": "Claim Substantiation",
+        "requirement": "All health claims must be substantiated and compliant with regulations",
+        "checkType": "qualitative",
+        "weight": "critical"
+      },
+      {
+        "ruleId": "MSG-003",
+        "name": "Required Disclaimers",
+        "requirement": "Include required FDA/legal disclaimers where applicable",
+        "checkType": "presence",
+        "weight": "critical"
+      }
+    ]
+  }
+}

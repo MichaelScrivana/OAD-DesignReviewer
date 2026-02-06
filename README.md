@@ -1,9 +1,9 @@
 # OAD Brand Review Assistant
 
-> AI-powered brand compliance checking system for Bayer's One A Day (OAD) brand using n8n + GPT-4o Vision
+> AI-powered brand compliance checking system for Bayer's One A Day (OAD) brand using Azure AI Foundry Agents
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![n8n](https://img.shields.io/badge/n8n-Workflow-FF6D5A)](https://n8n.io)
+[![Azure Foundry](https://img.shields.io/badge/Azure-Foundry-0078D4)](https://azure.microsoft.com/products/ai-studio)
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o-412991)](https://openai.com)
 [![Azure](https://img.shields.io/badge/Azure-Blob%20Storage-0078D4)](https://azure.microsoft.com)
 
@@ -11,7 +11,7 @@
 
 ## 🚀 Project Overview
 
-The **OAD Brand Review Assistant** is an AI-powered multi-agent system that automatically checks design compliance against brand guidelines. Designers can upload images, select their brand, and receive instant feedback on:
+The **OAD Brand Review Assistant** is an AI-powered system that automatically checks design compliance against brand guidelines using Azure AI Foundry agents. Designers can upload images, select their brand, and receive instant feedback on:
 
 - ✅ Logo usage (size, placement, clearspace)
 - 🎨 Color palette compliance
@@ -29,18 +29,21 @@ The system provides detailed, actionable reports with violations, warnings, and 
 │   Web App       │  ← User uploads design image
 │  (HTML/CSS/JS)  │
 └────────┬────────┘
-         │ POST /design-review
+         │ POST /api/foundry-agent
          ↓
 ┌─────────────────┐
-│   n8n Workflow  │  ← Orchestration layer
+│   Node.js API   │  ← Proxy server for Foundry calls
+│   Server        │
+└────────┬────────┘
+         │ Foundry Agent Query
+         ↓
+┌─────────────────┐
+│ Azure AI Foundry│  ← AI agent with brand knowledge
+│     Agent       │
 │                 │
-│  1. Webhook     │
-│  2. Fetch       │  ← Azure Blob: brand-config/oad-design-standards.json
-│     Standards   │
-│  3. GPT-4o      │  ← OpenAI Vision API
-│     Vision      │
-│  4. Validate    │
-│  5. Respond     │
+│  • GPT-4o Vision│  ← Image analysis
+│  • Brand Rules  │  ← Knowledge indexes
+│  • Evaluation   │  ← Quality assessment
 └────────┬────────┘
          │ JSON Report
          ↓
@@ -83,13 +86,14 @@ OAD-DesignReviewer/
 ├── src/                          # Web application
 │   ├── index.html                # Main UI with upload form & results
 │   ├── styles.css                # Responsive CSS with OAD brand colors
-│   └── app.js                    # Frontend logic & API integration
-├── n8n/                          # Workflow automation
-│   ├── design-review-workflow.json  # Importable n8n workflow
-│   └── README.md                 # n8n setup instructions
-├── azure/                        # Cloud storage configuration
+│   └── app.js                    # Frontend logic & Foundry API integration
+├── server.js                     # Node.js API server for Foundry proxy
+├── package.json                  # Node.js dependencies
+├── .env.example                  # Environment variables template
+├── azure/                        # Cloud configuration
 │   ├── oad-design-standards.json # Brand guidelines data
-│   └── setup-guide.md            # Azure Blob Storage setup
+│   ├── mcp-integration-guide.md  # Azure MCP usage guide
+│   └── foundry-agent-integration.md # Foundry setup instructions
 ├── docs/                         # Documentation
 │   ├── architecture.md           # System design & data flow
 │   ├── user-guide.md             # How to use the web app
@@ -108,8 +112,9 @@ OAD-DesignReviewer/
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
 | **Frontend** | HTML5, CSS3, Vanilla JavaScript | Static web app for user interaction |
-| **Orchestration** | n8n (Workflow Automation) | AI agent coordination, API calls |
-| **AI/ML** | OpenAI GPT-4o Vision | Image analysis & compliance checking |
+| **Backend API** | Node.js + Express | Proxy server for Foundry agent calls |
+| **AI Agent** | Azure AI Foundry | AI agent orchestration & evaluation |
+| **AI/ML** | Azure OpenAI GPT-4o | Image analysis & compliance checking |
 | **Storage** | Azure Blob Storage | Brand guidelines, images, reports |
 | **Deployment** | Azure Static Web Apps / GitHub Pages | Hosting & CDN |
 | **CI/CD** | GitHub Actions | Automated deployment pipeline |
@@ -143,31 +148,67 @@ Follow the comprehensive guide: **[azure/setup-guide.md](azure/setup-guide.md)**
 4. Generate SAS tokens (read access for brand standards)
 5. Save SAS URL for n8n configuration
 
-### 3. Import n8n Workflow
+### 3. Set Up Azure AI Foundry Agent
 
-Follow the setup guide: **[n8n/README.md](n8n/README.md)**
+Follow the setup guide: **[azure/foundry-agent-integration.md](azure/foundry-agent-integration.md)**
 
 **Summary**:
-1. Import `n8n/design-review-workflow.json` to your n8n instance
-2. Configure credentials:
-   - **OpenAI API** (GPT-4o Vision)
-   - **Azure Blob Storage SAS URL**
-3. Copy the webhook URL (e.g., `https://your-n8n.com/webhook/design-review`)
-4. Activate the workflow
+1. Create Azure AI Foundry resource
+2. Deploy GPT-4o model in Foundry Studio
+3. Create a new agent with brand compliance instructions
+4. Copy your agent ID and endpoint URL
 
-### 4. Configure Web App
+### 4. Configure Environment Variables
 
-Edit `src/app.js` and update the webhook URL:
+Copy `.env.example` to `.env` and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your Foundry configuration:
+
+```bash
+# Foundry Agent Configuration
+FOUNDRY_ENDPOINT=https://your-foundry-resource.services.ai.azure.com/api/projects/your-project-name
+FOUNDRY_AGENT_ID=your-agent-id-here
+
+# Azure OpenAI Configuration
+AZURE_OPENAI_ENDPOINT=https://your-openai-resource.openai.azure.com
+AZURE_OPENAI_DEPLOYMENT=gpt-4o
+AZURE_OPENAI_API_KEY=your-api-key-here
+```
+
+### 5. Configure Web App
+
+Edit `src/app.js` and update the Foundry configuration:
 
 ```javascript
 const CONFIG = {
-    n8nWebhookUrl: 'https://your-n8n.com/webhook/design-review', // ← CHANGE THIS
+    // Foundry Agent Configuration - UPDATE THESE VALUES
+    foundryEndpoint: 'https://your-foundry-resource.services.ai.azure.com/api/projects/your-project-name', // ← CHANGE THIS
+    agentId: 'your-agent-id', // ← CHANGE THIS
+    azureOpenaiEndpoint: 'https://your-openai-resource.openai.azure.com', // ← CHANGE THIS
+    azureOpenaiDeployment: 'gpt-4o', // ← CHANGE THIS IF DIFFERENT
+
+    // File constraints
     maxFileSize: 10 * 1024 * 1024,
-    allowedFileTypes: ['image/png', 'image/jpeg', 'image/svg+xml']
+    allowedFileTypes: ['image/png', 'image/jpeg', 'image/svg+xml'],
+    apiTimeout: 120000 // 2 minutes for Foundry agents
 };
 ```
 
-### 5. Test Locally
+### 6. Install Dependencies & Test Locally
+
+```bash
+# Install Node.js dependencies
+npm install
+
+# Start the API server
+npm start
+```
+
+In another terminal, serve the frontend:
 
 ```bash
 cd src
@@ -184,9 +225,9 @@ Open http://localhost:3000 in your browser.
 5. Click "Analyze Design"
 6. View compliance report with score, violations, warnings
 
-### 6. Deploy to Production
+### 7. Deploy to Production
 
-**Option A: Azure Static Web Apps** (Recommended)
+**Option A: Azure Static Web Apps + Azure App Service** (Recommended)
 
 ```bash
 # Install Azure Static Web Apps CLI

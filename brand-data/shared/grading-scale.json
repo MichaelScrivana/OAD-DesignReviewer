@@ -1,0 +1,139 @@
+{
+  "version": "3.0",
+  "lastUpdated": "2026-02-06",
+  "description": "Universal grading scale for all brand compliance reviews",
+
+  "gradingScale": {
+    "maxScore": 100,
+    "passThreshold": 70,
+    "grades": [
+      {"grade": "A+", "minScore": 97, "maxScore": 100, "status": "APPROVED", "label": "Exceptional", "color": "#22C55E"},
+      {"grade": "A", "minScore": 93, "maxScore": 96, "status": "APPROVED", "label": "Excellent", "color": "#22C55E"},
+      {"grade": "A-", "minScore": 90, "maxScore": 92, "status": "APPROVED", "label": "Very Good", "color": "#22C55E"},
+      {"grade": "B+", "minScore": 87, "maxScore": 89, "status": "APPROVED", "label": "Good", "color": "#84CC16"},
+      {"grade": "B", "minScore": 83, "maxScore": 86, "status": "APPROVED", "label": "Solid", "color": "#84CC16"},
+      {"grade": "B-", "minScore": 80, "maxScore": 82, "status": "APPROVED_WITH_NOTES", "label": "Acceptable", "color": "#84CC16"},
+      {"grade": "C+", "minScore": 77, "maxScore": 79, "status": "APPROVED_WITH_NOTES", "label": "Fair", "color": "#EAB308"},
+      {"grade": "C", "minScore": 73, "maxScore": 76, "status": "APPROVED_WITH_NOTES", "label": "Needs Work", "color": "#EAB308"},
+      {"grade": "C-", "minScore": 70, "maxScore": 72, "status": "NEEDS_REVISION", "label": "Minimum Standard", "color": "#EAB308"},
+      {"grade": "D+", "minScore": 67, "maxScore": 69, "status": "NEEDS_REVISION", "label": "Below Standard", "color": "#F97316"},
+      {"grade": "D", "minScore": 63, "maxScore": 66, "status": "NEEDS_REVISION", "label": "Poor", "color": "#F97316"},
+      {"grade": "D-", "minScore": 60, "maxScore": 62, "status": "REJECTED", "label": "Very Poor", "color": "#EF4444"},
+      {"grade": "F", "minScore": 0, "maxScore": 59, "status": "REJECTED", "label": "Failing", "color": "#EF4444"}
+    ]
+  },
+
+  "passFailDefinition": {
+    "pass": {
+      "minScore": 70,
+      "description": "Design meets brand standards and can be used",
+      "actions": ["Approved for use", "No changes required (or minor only)"]
+    },
+    "conditionalPass": {
+      "minScore": 70,
+      "maxScore": 79,
+      "description": "Design meets minimum standards but improvements recommended",
+      "actions": ["Can be used with noted improvements", "Recommend revisions for future use"]
+    },
+    "fail": {
+      "maxScore": 69,
+      "description": "Design does not meet brand standards",
+      "actions": ["Not approved for use", "Must be revised and resubmitted"]
+    }
+  },
+
+  "criticalViolations": {
+    "description": "Any critical violation results in automatic failure regardless of overall score",
+    "examples": [
+      "Logo missing or severely distorted",
+      "Completely wrong color palette used",
+      "Text unreadable (contrast below 3:1)",
+      "Brand name misspelled",
+      "Using prohibited colors",
+      "Logo effects applied (shadows, glows)",
+      "Minimum text size violations (<12px)"
+    ],
+    "autoFail": true,
+    "maxGrade": "F"
+  },
+
+  "severityLevels": {
+    "critical": {
+      "description": "Major brand violation that must be fixed before approval",
+      "pointDeduction": "Full points for that rule",
+      "autoFail": true,
+      "color": "#EF4444"
+    },
+    "major": {
+      "description": "Significant issue requiring attention",
+      "pointDeduction": "75% of rule points",
+      "autoFail": false,
+      "color": "#F97316"
+    },
+    "minor": {
+      "description": "Recommended improvement",
+      "pointDeduction": "50% of rule points",
+      "autoFail": false,
+      "color": "#EAB308"
+    }
+  },
+
+  "failureRules": {
+    "criticalFailure": {
+      "description": "Any critical failure in logo, colors, or accessibility results in automatic rejection",
+      "autoFail": true,
+      "maxGrade": "F"
+    },
+    "majorFailures": {
+      "description": "3 or more major failures caps the grade at C",
+      "threshold": 3,
+      "maxGrade": "C"
+    },
+    "minorFailures": {
+      "description": "5 or more minor failures caps the grade at B",
+      "threshold": 5,
+      "maxGrade": "B"
+    }
+  },
+
+  "reviewOutcomes": [
+    {
+      "status": "APPROVED",
+      "icon": "✅",
+      "color": "#22C55E",
+      "description": "Design passes all critical checks and meets brand standards",
+      "nextSteps": "Ready for production/publication"
+    },
+    {
+      "status": "APPROVED_WITH_NOTES",
+      "icon": "✅",
+      "color": "#84CC16",
+      "description": "Design passes but has minor recommendations for improvement",
+      "nextSteps": "Can proceed; consider improvements for future iterations"
+    },
+    {
+      "status": "NEEDS_REVISION",
+      "icon": "⚠️",
+      "color": "#F97316",
+      "description": "Design has issues that should be addressed before use",
+      "nextSteps": "Revise and resubmit for review"
+    },
+    {
+      "status": "REJECTED",
+      "icon": "❌",
+      "color": "#EF4444",
+      "description": "Design does not meet brand standards",
+      "nextSteps": "Significant rework required before resubmission"
+    }
+  ],
+
+  "categoryWeights": {
+    "description": "Standard category weights for brand compliance (total = 100)",
+    "logo": 20,
+    "colors": 20,
+    "typography": 18,
+    "accessibility": 22,
+    "imagery": 12,
+    "layout": 8
+  }
+}

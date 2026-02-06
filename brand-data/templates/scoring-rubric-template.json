@@ -1,0 +1,54 @@
+{
+  "brandId": "BRAND_ID",
+  "version": "1.0",
+  "lastUpdated": "2026-02-06",
+  
+  "gradingScale": {
+    "maxScore": 100,
+    "passThreshold": 70,
+    "grades": [
+      {"grade": "A+", "minScore": 95, "maxScore": 100, "status": "pass", "label": "Excellent - Approved"},
+      {"grade": "A", "minScore": 90, "maxScore": 94, "status": "pass", "label": "Very Good - Approved"},
+      {"grade": "B+", "minScore": 85, "maxScore": 89, "status": "pass", "label": "Good - Approved"},
+      {"grade": "B", "minScore": 80, "maxScore": 84, "status": "pass", "label": "Acceptable - Approved"},
+      {"grade": "C+", "minScore": 75, "maxScore": 79, "status": "pass", "label": "Needs Minor Fixes - Conditional"},
+      {"grade": "C", "minScore": 70, "maxScore": 74, "status": "pass", "label": "Minimum Standard - Conditional"},
+      {"grade": "D", "minScore": 60, "maxScore": 69, "status": "fail", "label": "Below Standard - Not Approved"},
+      {"grade": "F", "minScore": 0, "maxScore": 59, "status": "fail", "label": "Significant Issues - Not Approved"}
+    ]
+  },
+  
+  "categories": {},
+  
+  "failureRules": {
+    "criticalFailure": {
+      "description": "Any critical failure results in automatic fail regardless of score",
+      "autoFail": true,
+      "maxGrade": "F"
+    },
+    "majorFailures": {
+      "description": "3+ major failures caps grade at C",
+      "threshold": 3,
+      "maxGrade": "C"
+    },
+    "minorFailures": {
+      "description": "5+ minor failures caps grade at B",
+      "threshold": 5,
+      "maxGrade": "B"
+    }
+  },
+  
+  "bonusPoints": {
+    "maxBonus": 5,
+    "criteria": []
+  },
+  
+  "outputFormat": {
+    "includeScore": true,
+    "includeGrade": true,
+    "includePassFail": true,
+    "includeBreakdown": true,
+    "includeRecommendations": true,
+    "includeCitations": true
+  }
+}

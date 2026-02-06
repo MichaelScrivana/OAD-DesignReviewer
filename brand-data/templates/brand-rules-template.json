@@ -1,0 +1,563 @@
+{
+  "_instructions": "Replace all PLACEHOLDER values with your brand-specific information. Remove this _instructions field when complete.",
+  
+  "brandId": "BRAND_ID",
+  "brandName": "Your Brand Name",
+  "version": "1.0",
+  "lastUpdated": "YYYY-MM-DD",
+  "sourceDocument": "Brand Guidelines PDF filename or source",
+  "guidelinesUrl": "https://example.com/brand/guidelines",
+
+  "brandEssence": {
+    "tagline": "Your brand tagline",
+    "positioning": "Brand positioning statement describing what you deliver and to whom",
+    "targetAudience": "Description of primary target audience",
+    "toneOfVoice": {
+      "primary": ["Adjective1", "Adjective2", "Adjective3"],
+      "description": "Description of how the brand should sound and feel in communications"
+    }
+  },
+
+  "logo": {
+    "description": "Description of your brand logo and its key characteristics",
+    "rules": [
+      {
+        "ruleId": "LOGO-001",
+        "name": "Logo Presence",
+        "requirement": "Logo must be present on all brand materials",
+        "checkType": "boolean",
+        "required": true,
+        "weight": "critical"
+      },
+      {
+        "ruleId": "LOGO-002",
+        "name": "Logo Integrity",
+        "requirement": "Logo must not be stretched, distorted, rotated, or modified",
+        "checkType": "boolean",
+        "weight": "critical"
+      },
+      {
+        "ruleId": "LOGO-003",
+        "name": "Minimum Size - Digital",
+        "requirement": "Logo must be at least XXXpx wide for digital applications",
+        "checkType": "numeric",
+        "minValue": 120,
+        "unit": "px",
+        "weight": "critical"
+      },
+      {
+        "ruleId": "LOGO-004",
+        "name": "Minimum Size - Print",
+        "requirement": "Logo must be at least X inch (XXmm) wide for print applications",
+        "checkType": "numeric",
+        "minValue": 25.4,
+        "unit": "mm",
+        "weight": "critical"
+      },
+      {
+        "ruleId": "LOGO-005",
+        "name": "Clear Space",
+        "requirement": "Maintain minimum clear space around logo (define measurement reference)",
+        "checkType": "proportional",
+        "reference": "height of X character or specific pixel value",
+        "weight": "major"
+      },
+      {
+        "ruleId": "LOGO-006",
+        "name": "Approved Color Versions",
+        "requirement": "Use only approved logo color versions",
+        "checkType": "enum",
+        "allowedValues": ["full-color", "white-reversed", "black"],
+        "weight": "critical"
+      },
+      {
+        "ruleId": "LOGO-007",
+        "name": "Background Contrast",
+        "requirement": "Logo must have sufficient contrast against background",
+        "checkType": "contrast",
+        "minContrast": 4.5,
+        "weight": "major"
+      },
+      {
+        "ruleId": "LOGO-008",
+        "name": "No Effects",
+        "requirement": "Do not apply shadows, glows, gradients, or other effects to the logo",
+        "checkType": "boolean",
+        "weight": "major"
+      }
+    ],
+    "prohibitions": [
+      "Do not stretch or distort the logo",
+      "Do not rotate the logo",
+      "Do not change logo colors outside approved versions",
+      "Do not add shadows, glows, or effects",
+      "Do not place logo on busy or low-contrast backgrounds",
+      "Do not crop or partially obscure the logo",
+      "Do not rearrange logo elements",
+      "Do not outline the logo"
+    ],
+    "referenceAssets": {
+      "primary": "reference-assets/logo-primary.svg",
+      "reversed": "reference-assets/logo-white.svg",
+      "black": "reference-assets/logo-black.svg"
+    }
+  },
+
+  "colors": {
+    "description": "Brand color palette description and usage context",
+    "rules": [
+      {
+        "ruleId": "COLOR-001",
+        "name": "Approved Palette Only",
+        "requirement": "Only use colors from the approved brand color palette",
+        "checkType": "color-match",
+        "weight": "critical"
+      },
+      {
+        "ruleId": "COLOR-002",
+        "name": "Primary Color Dominance",
+        "requirement": "Primary brand color should be dominant in key brand moments",
+        "checkType": "presence",
+        "weight": "major"
+      },
+      {
+        "ruleId": "COLOR-003",
+        "name": "Color Hierarchy",
+        "requirement": "Follow color hierarchy: Primary (60%), Secondary (30%), Accent (10%)",
+        "checkType": "ratio",
+        "weight": "minor"
+      },
+      {
+        "ruleId": "COLOR-004",
+        "name": "Color Accuracy",
+        "requirement": "Colors must match exact hex/RGB values within tolerance",
+        "checkType": "exact-match",
+        "tolerance": 5,
+        "weight": "major"
+      },
+      {
+        "ruleId": "COLOR-005",
+        "name": "Prohibited Colors",
+        "requirement": "Do not use colors that conflict with brand identity",
+        "checkType": "exclusion",
+        "weight": "major"
+      }
+    ],
+    "palette": {
+      "primary": [
+        {
+          "name": "Primary Color Name",
+          "hex": "#XXXXXX",
+          "rgb": {"r": 0, "g": 0, "b": 0},
+          "cmyk": {"c": 0, "m": 0, "y": 0, "k": 0},
+          "pantone": "XXX C",
+          "usage": "Primary brand color usage description"
+        }
+      ],
+      "secondary": [
+        {
+          "name": "Secondary Color Name",
+          "hex": "#XXXXXX",
+          "rgb": {"r": 0, "g": 0, "b": 0},
+          "usage": "Secondary color usage description"
+        }
+      ],
+      "accent": [
+        {
+          "name": "Accent Color Name",
+          "hex": "#XXXXXX",
+          "rgb": {"r": 0, "g": 0, "b": 0},
+          "usage": "Accent color usage description"
+        }
+      ],
+      "functional": [
+        {
+          "name": "Success Green",
+          "hex": "#2E7D32",
+          "usage": "Success messages, positive indicators"
+        },
+        {
+          "name": "Warning Amber",
+          "hex": "#F57C00",
+          "usage": "Warning messages, caution indicators"
+        },
+        {
+          "name": "Error Red",
+          "hex": "#C62828",
+          "usage": "Error messages only"
+        }
+      ],
+      "neutral": [
+        {
+          "name": "Charcoal",
+          "hex": "#333333",
+          "usage": "Body text"
+        },
+        {
+          "name": "White",
+          "hex": "#FFFFFF",
+          "usage": "Backgrounds"
+        }
+      ]
+    },
+    "prohibitedColors": [
+      {"hex": "#FF0000", "reason": "Pure red reserved for errors only"},
+      {"hex": "#00FF00", "reason": "Lime green not on brand"}
+    ],
+    "colorCombinations": {
+      "recommended": [
+        {"foreground": "#XXXXXX", "background": "#XXXXXX", "usage": "Primary text"}
+      ],
+      "avoid": [
+        {"foreground": "#XXXXXX", "background": "#XXXXXX", "reason": "Insufficient contrast"}
+      ]
+    }
+  },
+
+  "typography": {
+    "description": "Typography system description",
+    "rules": [
+      {
+        "ruleId": "TYPE-001",
+        "name": "Primary Font Family",
+        "requirement": "Use approved font families only",
+        "checkType": "enum",
+        "allowedValues": ["Primary Font", "Fallback 1", "Fallback 2", "sans-serif"],
+        "weight": "major"
+      },
+      {
+        "ruleId": "TYPE-002",
+        "name": "Font Weights",
+        "requirement": "Use only approved font weights",
+        "checkType": "enum",
+        "allowedValues": [300, 400, 600, 700],
+        "weight": "minor"
+      },
+      {
+        "ruleId": "TYPE-003",
+        "name": "Minimum Body Text Size",
+        "requirement": "Body text must be at least 16px for digital, 10pt for print",
+        "checkType": "numeric",
+        "minValue": 16,
+        "unit": "px",
+        "weight": "critical"
+      },
+      {
+        "ruleId": "TYPE-004",
+        "name": "Minimum Caption Size",
+        "requirement": "No text smaller than 12px for digital, 8pt for print",
+        "checkType": "numeric",
+        "minValue": 12,
+        "unit": "px",
+        "weight": "critical"
+      },
+      {
+        "ruleId": "TYPE-005",
+        "name": "Heading Hierarchy",
+        "requirement": "Headings must follow clear size hierarchy",
+        "checkType": "hierarchy",
+        "weight": "major"
+      },
+      {
+        "ruleId": "TYPE-006",
+        "name": "Line Height",
+        "requirement": "Body text line height should be 1.4-1.6 for optimal readability",
+        "checkType": "range",
+        "minValue": 1.4,
+        "maxValue": 1.6,
+        "weight": "minor"
+      },
+      {
+        "ruleId": "TYPE-007",
+        "name": "Line Length",
+        "requirement": "Body text line length should be 50-75 characters",
+        "checkType": "range",
+        "minValue": 50,
+        "maxValue": 75,
+        "unit": "characters",
+        "weight": "minor"
+      },
+      {
+        "ruleId": "TYPE-008",
+        "name": "Text Alignment",
+        "requirement": "Use left-aligned text for body copy",
+        "checkType": "enum",
+        "allowedValues": ["left", "center"],
+        "weight": "minor"
+      }
+    ],
+    "fonts": {
+      "primary": {
+        "family": "Primary Font Name",
+        "fallbacks": ["Fallback 1", "Fallback 2", "sans-serif"],
+        "weights": {
+          "light": 300,
+          "regular": 400,
+          "semibold": 600,
+          "bold": 700
+        },
+        "usage": "All brand communications"
+      },
+      "accent": {
+        "family": "Accent Font Name",
+        "fallbacks": ["serif"],
+        "weights": {
+          "regular": 400
+        },
+        "usage": "Pull quotes, special callouts (limited use)"
+      }
+    },
+    "scale": {
+      "display": {"size": 64, "lineHeight": 1.1, "weight": 700, "unit": "px"},
+      "h1": {"size": 48, "lineHeight": 1.2, "weight": 700, "unit": "px"},
+      "h2": {"size": 36, "lineHeight": 1.25, "weight": 600, "unit": "px"},
+      "h3": {"size": 28, "lineHeight": 1.3, "weight": 600, "unit": "px"},
+      "h4": {"size": 22, "lineHeight": 1.35, "weight": 600, "unit": "px"},
+      "h5": {"size": 18, "lineHeight": 1.4, "weight": 600, "unit": "px"},
+      "body": {"size": 16, "lineHeight": 1.5, "weight": 400, "unit": "px"},
+      "bodySmall": {"size": 14, "lineHeight": 1.5, "weight": 400, "unit": "px"},
+      "caption": {"size": 12, "lineHeight": 1.4, "weight": 400, "unit": "px"}
+    }
+  },
+
+  "accessibility": {
+    "description": "Accessibility compliance requirements",
+    "standard": "WCAG 2.1 AA",
+    "rules": [
+      {
+        "ruleId": "A11Y-001",
+        "name": "Normal Text Contrast",
+        "requirement": "Normal text (<18px or <14px bold) must have minimum 4.5:1 contrast ratio",
+        "checkType": "contrast-ratio",
+        "minValue": 4.5,
+        "weight": "critical"
+      },
+      {
+        "ruleId": "A11Y-002",
+        "name": "Large Text Contrast",
+        "requirement": "Large text (≥18px or ≥14px bold) must have minimum 3:1 contrast ratio",
+        "checkType": "contrast-ratio",
+        "minValue": 3.0,
+        "weight": "critical"
+      },
+      {
+        "ruleId": "A11Y-003",
+        "name": "UI Component Contrast",
+        "requirement": "Interactive UI components must have minimum 3:1 contrast",
+        "checkType": "contrast-ratio",
+        "minValue": 3.0,
+        "weight": "major"
+      },
+      {
+        "ruleId": "A11Y-004",
+        "name": "Minimum Text Size",
+        "requirement": "No text smaller than 12px (16px preferred for body)",
+        "checkType": "numeric",
+        "minValue": 12,
+        "recommendedValue": 16,
+        "unit": "px",
+        "weight": "critical"
+      },
+      {
+        "ruleId": "A11Y-005",
+        "name": "Color Independence",
+        "requirement": "Information must not be conveyed by color alone",
+        "checkType": "qualitative",
+        "weight": "major"
+      },
+      {
+        "ruleId": "A11Y-006",
+        "name": "Touch Target Size",
+        "requirement": "Interactive elements must have minimum 44x44px touch target",
+        "checkType": "numeric",
+        "minValue": 44,
+        "unit": "px",
+        "weight": "major"
+      },
+      {
+        "ruleId": "A11Y-007",
+        "name": "Focus Indicators",
+        "requirement": "All interactive elements must have visible focus indicators",
+        "checkType": "presence",
+        "weight": "major"
+      },
+      {
+        "ruleId": "A11Y-008",
+        "name": "Image Alt Text",
+        "requirement": "All meaningful images must have descriptive alt text",
+        "checkType": "presence",
+        "weight": "major"
+      }
+    ]
+  },
+
+  "imagery": {
+    "description": "Photography and imagery guidelines",
+    "rules": [
+      {
+        "ruleId": "IMG-001",
+        "name": "Image Quality",
+        "requirement": "Images must be high resolution - minimum 72dpi for web, 300dpi for print",
+        "checkType": "numeric",
+        "minValue": {"web": 72, "print": 300},
+        "unit": "dpi",
+        "weight": "major"
+      },
+      {
+        "ruleId": "IMG-002",
+        "name": "Authentic Representation",
+        "requirement": "Use authentic, diverse imagery showing real people",
+        "checkType": "qualitative",
+        "weight": "major"
+      },
+      {
+        "ruleId": "IMG-003",
+        "name": "Brand Tone Alignment",
+        "requirement": "Imagery should align with brand tone and values",
+        "checkType": "qualitative",
+        "weight": "major"
+      },
+      {
+        "ruleId": "IMG-004",
+        "name": "Lighting Quality",
+        "requirement": "Use appropriate lighting for brand feel",
+        "checkType": "qualitative",
+        "weight": "minor"
+      },
+      {
+        "ruleId": "IMG-005",
+        "name": "Diversity & Inclusion",
+        "requirement": "Imagery must represent diverse audiences",
+        "checkType": "qualitative",
+        "weight": "major"
+      },
+      {
+        "ruleId": "IMG-006",
+        "name": "Product Photography",
+        "requirement": "Product shots should be clean, well-lit, and accurate",
+        "checkType": "qualitative",
+        "weight": "critical"
+      }
+    ],
+    "style": {
+      "tone": "Description of overall image tone",
+      "lighting": "Preferred lighting style",
+      "subjects": "Preferred subjects and settings",
+      "settings": "Preferred environments",
+      "avoid": [
+        "Stock photo clichés",
+        "Overly clinical imagery",
+        "Dark or moody photography",
+        "Unrealistic representations"
+      ]
+    },
+    "composition": {
+      "principles": [
+        "Use rule of thirds",
+        "Leave space for text overlay",
+        "Focus on genuine moments"
+      ]
+    }
+  },
+
+  "layout": {
+    "description": "Layout and spacing guidelines",
+    "rules": [
+      {
+        "ruleId": "LAYOUT-001",
+        "name": "Logo Placement",
+        "requirement": "Logo should be in preferred positions for applications",
+        "checkType": "position",
+        "preferredPositions": ["top-left", "bottom-right"],
+        "weight": "minor"
+      },
+      {
+        "ruleId": "LAYOUT-002",
+        "name": "Grid System",
+        "requirement": "Use base grid for all spacing and alignment",
+        "checkType": "multiple",
+        "baseUnit": 8,
+        "weight": "minor"
+      },
+      {
+        "ruleId": "LAYOUT-003",
+        "name": "Visual Hierarchy",
+        "requirement": "Establish clear visual hierarchy",
+        "checkType": "qualitative",
+        "weight": "major"
+      },
+      {
+        "ruleId": "LAYOUT-004",
+        "name": "Whitespace",
+        "requirement": "Maintain generous whitespace",
+        "checkType": "qualitative",
+        "weight": "minor"
+      },
+      {
+        "ruleId": "LAYOUT-005",
+        "name": "CTA Prominence",
+        "requirement": "Call-to-action must be clearly visible",
+        "checkType": "presence",
+        "weight": "major"
+      },
+      {
+        "ruleId": "LAYOUT-006",
+        "name": "Content Margins",
+        "requirement": "Maintain minimum margins",
+        "checkType": "numeric",
+        "minValue": {"mobile": 16, "desktop": 24},
+        "unit": "px",
+        "weight": "minor"
+      }
+    ],
+    "spacing": {
+      "baseUnit": 8,
+      "scale": [4, 8, 12, 16, 24, 32, 48, 64, 96, 128],
+      "usage": {
+        "4": "Tight spacing, inline elements",
+        "8": "Default small spacing",
+        "16": "Default medium spacing",
+        "24": "Section padding mobile",
+        "32": "Section padding desktop",
+        "48": "Large section breaks",
+        "64": "Major section separation"
+      }
+    }
+  },
+
+  "messaging": {
+    "description": "Brand voice and messaging guidelines",
+    "toneOfVoice": {
+      "primary": ["Adjective1", "Adjective2", "Adjective3"],
+      "avoid": ["Negative1", "Negative2", "Negative3"]
+    },
+    "keyMessages": [
+      "Key message 1",
+      "Key message 2",
+      "Key message 3"
+    ],
+    "rules": [
+      {
+        "ruleId": "MSG-001",
+        "name": "Brand Voice Consistency",
+        "requirement": "All copy should reflect brand tone",
+        "checkType": "qualitative",
+        "weight": "major"
+      },
+      {
+        "ruleId": "MSG-002",
+        "name": "Claim Substantiation",
+        "requirement": "All claims must be substantiated and compliant",
+        "checkType": "qualitative",
+        "weight": "critical"
+      },
+      {
+        "ruleId": "MSG-003",
+        "name": "Required Disclaimers",
+        "requirement": "Include required legal disclaimers where applicable",
+        "checkType": "presence",
+        "weight": "critical"
+      }
+    ]
+  }
+}
