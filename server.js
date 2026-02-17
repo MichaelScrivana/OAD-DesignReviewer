@@ -3,10 +3,18 @@ const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
+const { simpleParser } = require('mailparser');
+const multer = require('multer');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Configure multer for file uploads
+const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 25 * 1024 * 1024 } // 25MB limit for emails
+});
 
 // Middleware
 app.use(cors());
@@ -78,83 +86,17 @@ function generateSystemPrompt(brandData) {
     // Prohibited colors
     const prohibitedColors = brandRules.colors?.prohibitedColors?.map(c => `- ${c.hex}: ${c.reason}`).join('\n') || '';
 
-    return `You are the ${brandRules.brandName} (${brandRules.brandId}) Brand Compliance Review Agent.
-Your job is to analyze design images and evaluate them against brand guidelines.
+    return `You are a brand compliance reviewer. Return ONLY raw JSON, no other text.
 
-## BRAND IDENTITY
-- Brand: ${brandRules.brandName}
-- Brand ID: ${brandRules.brandId}
-- Guidelines Version: ${brandRules.version}
-- Tagline: ${brandRules.brandEssence?.tagline || 'N/A'}
+Brand: ${brandRules.brandName} (${brandRules.brandId})
+Colors — Primary: ${primaryColors} | Secondary: ${secondaryColors} | Accent: ${accentColors}
+Font: ${fontFamily}, min ${minBodySize}px | ${a11yStandard}
+Scoring: logo/25, colors/25, typography/20, accessibility/20, layout/10. Pass≥${scoringRubric?.gradingScale?.passThreshold || 70}.
 
-## COLOR PALETTE
-Primary Colors: ${primaryColors}
-Secondary Colors: ${secondaryColors}
-Accent Colors: ${accentColors}
+Return this exact JSON schema:
+{"complianceScore":0,"grade":"","status":"APPROVED|APPROVED_WITH_NOTES|NEEDS_REVISION|REJECTED","passOrFail":"PASS|FAIL","categoryScores":{"logo":{"score":0,"maxScore":25},"colors":{"score":0,"maxScore":25},"typography":{"score":0,"maxScore":20},"accessibility":{"score":0,"maxScore":20},"layout":{"score":0,"maxScore":10}},"violations":[{"ruleId":"","severity":"critical|major|minor","description":""}],"warnings":[{"description":""}],"recommendations":[""],"summary":""}
 
-Prohibited Colors:
-${prohibitedColors}
-
-## LOGO RULES
-${logoRules}
-
-Logo Prohibitions:
-${logoProhibitions}
-
-## TYPOGRAPHY
-Primary Font: ${fontFamily}
-Fallbacks: ${fontFallbacks}
-Minimum body text size: ${minBodySize}px
-
-## ACCESSIBILITY (${a11yStandard})
-${a11yRules}
-
-## SCORING SYSTEM
-Total Points: ${scoringRubric?.gradingScale?.maxScore || 100}
-Pass Threshold: ${scoringRubric?.gradingScale?.passThreshold || 70}
-
-Category Weights:
-${categoryWeights}
-
-## GRADING SCALE
-${scoringRubric?.gradingScale?.grades?.map(g => `- ${g.grade}: ${g.minScore}-${g.maxScore} (${g.label})`).join('\n') || 'A-F scale'}
-
-## FAILURE RULES
-- Critical Failure: ${scoringRubric?.failureRules?.criticalFailure?.description || 'Results in automatic failure'}
-- Major Failures (${scoringRubric?.failureRules?.majorFailures?.threshold || 3}+): ${scoringRubric?.failureRules?.majorFailures?.description || 'Caps grade at C'}
-- Minor Failures (${scoringRubric?.failureRules?.minorFailures?.threshold || 5}+): ${scoringRubric?.failureRules?.minorFailures?.description || 'Caps grade at B'}
-
-## OUTPUT FORMAT
-You MUST return your analysis as valid JSON with this structure:
-{
-  "score": <number 0-100>,
-  "grade": "<A+ to F>",
-  "status": "<APPROVED|APPROVED_WITH_NOTES|NEEDS_REVISION|REJECTED>",
-  "passOrFail": "<PASS|FAIL>",
-  "categoryScores": {
-    "logo": {"score": <number>, "maxScore": 25, "percentage": <number>},
-    "colors": {"score": <number>, "maxScore": 25, "percentage": <number>},
-    "typography": {"score": <number>, "maxScore": 20, "percentage": <number>},
-    "accessibility": {"score": <number>, "maxScore": 20, "percentage": <number>},
-    "layout": {"score": <number>, "maxScore": 10, "percentage": <number>}
-  },
-  "violations": [
-    {"ruleId": "<rule ID>", "category": "<category>", "severity": "<critical|major|minor>", "description": "<what's wrong>", "recommendation": "<how to fix>"}
-  ],
-  "warnings": [
-    {"description": "<potential issue>", "severity": "minor"}
-  ],
-  "recommendations": ["<actionable improvement 1>", "<actionable improvement 2>"],
-  "summary": "<2-3 sentence summary of the review>"
-}
-
-## IMPORTANT RULES
-1. Be precise - cite exact measurements and values when possible
-2. Be fair - don't fail designs for minor issues
-3. Be helpful - always provide actionable recommendations
-4. Reference specific rule IDs when citing violations
-5. When uncertain, note it as "Cannot Determine" rather than guessing
-6. ALWAYS return valid JSON - no markdown, no extra text`;
+Rules: Max 5 violations, max 3 warnings, max 3 recommendations. Each 1 short sentence. Summary: 1 sentence.`;
 }
 
 // Foundry Agent Configuration
@@ -233,6 +175,7 @@ async function callFoundryAgent(agentId, query, endpoint) {
         
         let messages;
         let textQuery = query;
+        let isChat = false;
         
         if (imageMatch) {
             // Extract image and text separately for vision API
@@ -262,18 +205,19 @@ async function callFoundryAgent(agentId, query, endpoint) {
                 }
             ];
         } else {
-            // Text-only query
+            // Text-only query (chat) — no brand system prompt needed, the query carries its own instructions
             console.log('No image detected, using text-only format');
+            isChat = true;
             messages = [
-                { role: 'system', content: systemPrompt },
+                { role: 'system', content: 'You are a concise brand compliance assistant. Keep replies focused and actionable. Use short bullet points when listing multiple items. Avoid long introductions or repetition.' },
                 { role: 'user', content: query }
             ];
         }
 
         const response = await axios.post(apiUrl, {
             messages: messages,
-            max_tokens: 2000,
-            temperature: 0.3
+            max_tokens: isChat ? 500 : 800,
+            temperature: isChat ? 0.3 : 0.15
         }, {
             headers: {
                 'Content-Type': 'application/json',
@@ -282,14 +226,14 @@ async function callFoundryAgent(agentId, query, endpoint) {
             timeout: 120000 // 2 minute timeout for image analysis
         });
 
-        console.log('Azure OpenAI response received');
-
         // Extract the response content
         const content = response.data.choices[0]?.message?.content;
-        
+
         if (!content) {
             throw new Error('No response content from Azure OpenAI');
         }
+
+        console.log('Azure OpenAI response received, length:', content.length, 'chars');
 
         return content;
 
@@ -425,6 +369,123 @@ app.get('/api/brand-rules/:brandId', (req, res) => {
     } catch (error) {
         console.error('Error loading brand rules:', error);
         res.status(500).json({ error: 'Failed to load brand rules' });
+    }
+});
+
+// ============================================
+// Email Parsing Endpoint
+// ============================================
+
+app.post('/api/parse-email', upload.single('email'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No email file provided' });
+        }
+
+        console.log(`📧 Parsing email: ${req.file.originalname}`);
+
+        // Parse the email
+        const parsed = await simpleParser(req.file.buffer);
+        
+        const images = [];
+        
+        // Extract images from attachments
+        if (parsed.attachments && parsed.attachments.length > 0) {
+            for (const attachment of parsed.attachments) {
+                // Check if it's an image
+                if (attachment.contentType && attachment.contentType.startsWith('image/')) {
+                    images.push({
+                        filename: attachment.filename || `attachment_${images.length + 1}`,
+                        mimeType: attachment.contentType,
+                        base64: attachment.content.toString('base64'),
+                        size: attachment.size
+                    });
+                    console.log(`  📎 Found attachment: ${attachment.filename}`);
+                }
+            }
+        }
+
+        // Extract inline images (CID references in HTML)
+        if (parsed.attachments) {
+            for (const attachment of parsed.attachments) {
+                // CID images are referenced in HTML with cid:
+                if (attachment.cid && attachment.contentType && attachment.contentType.startsWith('image/')) {
+                    // Check if we already added this (avoid duplicates)
+                    const alreadyAdded = images.some(img => 
+                        img.filename === attachment.filename && img.size === attachment.size
+                    );
+                    if (!alreadyAdded) {
+                        images.push({
+                            filename: attachment.filename || `inline_${images.length + 1}`,
+                            mimeType: attachment.contentType,
+                            base64: attachment.content.toString('base64'),
+                            size: attachment.size,
+                            inline: true
+                        });
+                        console.log(`  🖼️ Found inline image: ${attachment.filename}`);
+                    }
+                }
+            }
+        }
+
+        console.log(`✅ Extracted ${images.length} image(s) from email`);
+
+        res.json({
+            success: true,
+            emailSubject: parsed.subject,
+            emailFrom: parsed.from?.text,
+            emailDate: parsed.date,
+            images: images
+        });
+
+    } catch (error) {
+        console.error('Email parsing error:', error);
+        res.status(500).json({ 
+            error: 'Failed to parse email',
+            details: error.message 
+        });
+    }
+});
+
+// ============================================
+// PDF Parsing Endpoint
+// ============================================
+
+app.post('/api/parse-pdf', upload.single('pdf'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No PDF file provided' });
+        }
+
+        console.log(`📄 Processing PDF: ${req.file.originalname}`);
+        console.log(`   Size: ${Math.round(req.file.size / 1024)}KB`);
+
+        // GPT-4o Vision can analyze PDFs directly when sent as base64
+        // We'll send the PDF as-is and let the AI handle it
+        const base64PDF = req.file.buffer.toString('base64');
+        
+        const images = [{
+            filename: req.file.originalname,
+            base64: base64PDF,
+            mimeType: 'application/pdf',
+            pageNumber: 1,
+            isFullPDF: true
+        }];
+
+        console.log(`✅ PDF ready for AI analysis`);
+
+        res.json({
+            success: true,
+            message: 'PDF will be analyzed directly by AI',
+            images: images
+        });
+
+    } catch (error) {
+        console.error('PDF processing error:', error);
+        res.status(500).json({ 
+            error: 'Failed to process PDF',
+            details: error.message 
+        });
     }
 });
 

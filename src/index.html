@@ -13,7 +13,13 @@
 <body>
     <div class="app">
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
+            <button id="sidebar-toggle" class="sidebar-toggle" title="Toggle sidebar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+            
             <div class="sidebar-header">
                 <div class="brand">
                     <div class="brand-icon">
@@ -29,6 +35,17 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Brand Selector at top -->
+            <div class="sidebar-brand-selector">
+                <label for="brand-select" class="sidebar-label">Reviewing for</label>
+                <select id="brand-select" name="brand" class="sidebar-select">
+                    <option value="OAD">One A Day</option>
+                    <option value="CLARITIN">Claritin</option>
+                    <option value="ALEVE">Aleve</option>
+                    <option value="ASPIRIN">Bayer Aspirin</option>
+                </select>
+            </div>
             
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" data-panel="upload-section">
@@ -36,7 +53,7 @@
                         <rect x="3" y="3" width="18" height="18" rx="2"></rect>
                         <path d="M12 8v8M8 12h8"></path>
                     </svg>
-                    <span>New Review</span>
+                    <span>Design Review</span>
                 </a>
                 <a href="#" class="nav-item" data-panel="history-section">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -47,11 +64,41 @@
                 </a>
             </nav>
 
+            <div class="sidebar-links">
+                <div class="sidebar-label">Useful Links</div>
+                <a href="https://oad.brand.com" target="_blank" class="sidebar-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                        <path d="M2 17l10 5 10-5"></path>
+                    </svg>
+                    <span>OAD Brand Portal</span>
+                </a>
+                <a href="https://oad.brand.com/guidelines" target="_blank" class="sidebar-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <span>Brand Guidelines</span>
+                </a>
+                <a href="https://oad.brand.com/assets" target="_blank" class="sidebar-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <span>Asset Library</span>
+                </a>
+                <a href="https://oad.brand.com/support" target="_blank" class="sidebar-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span>Help & Support</span>
+                </a>
+            </div>
+
             <div class="sidebar-footer">
-                <div class="brand-badge">
-                    <span class="badge-dot"></span>
-                    <span>One A Day</span>
-                </div>
             </div>
         </aside>
 
@@ -64,7 +111,7 @@
                         <!-- Left: Upload Zone -->
                         <div class="upload-zone-wrapper">
                             <div id="drop-zone" class="drop-zone">
-                                <input type="file" id="file-upload" accept="image/png,image/jpeg,image/svg+xml" hidden>
+                                <input type="file" id="file-upload" accept="image/png,image/jpeg,image/svg+xml,.eml,.pdf,application/pdf" multiple hidden>
                                 <div class="drop-zone-content">
                                     <div class="upload-icon-wrapper">
                                         <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -73,216 +120,157 @@
                                             <line x1="12" y1="3" x2="12" y2="15"></line>
                                         </svg>
                                     </div>
-                                    <h3 class="upload-title">Drop your design here</h3>
+                                    <h3 class="upload-title">Drop your designs here</h3>
                                     <p class="upload-subtitle">or click to browse</p>
-                                    <p class="upload-hint">PNG, JPG, SVG up to 10MB</p>
-                                </div>
-                                <div id="preview-container" class="preview-container hidden">
-                                    <img id="preview-image" class="preview-image" alt="Design preview">
-                                    <button type="button" id="remove-image" class="btn-remove" aria-label="Remove image">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                                        </svg>
-                                    </button>
+                                    <p class="upload-hint">PNG, JPG, SVG, PDF, or .eml emails • Multiple files supported</p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Right: Form -->
-                        <div class="upload-form-wrapper">
-                            <form id="upload-form" class="upload-form">
-                                <h2 class="form-title">Design Details</h2>
-                                
-                                <div class="form-grid">
-                                    <div class="form-group">
-                                        <label for="brand-select" class="form-label">Brand</label>
-                                        <select id="brand-select" name="brand" class="form-select">
-                                            <option value="OAD">One A Day</option>
-                                            <option value="CLARITIN">Claritin</option>
-                                            <option value="ALEVE">Aleve</option>
-                                            <option value="ASPIRIN">Bayer Aspirin</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="design-type-select" class="form-label">Asset Type</label>
-                                        <select id="design-type-select" name="designType" class="form-select">
-                                            <option value="social-media">Social Media</option>
-                                            <option value="banner">Digital Banner</option>
-                                            <option value="email">Email</option>
-                                            <option value="print">Print</option>
-                                            <option value="packaging">Packaging</option>
-                                            <option value="website">Website</option>
-                                        </select>
-                                    </div>
+                        <!-- Right: Image Queue -->
+                        <div class="queue-panel">
+                            <div class="queue-panel-header">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <path d="M21 15l-5-5L5 21"></path>
+                                </svg>
+                                <span>Selected Designs</span>
+                                <span id="queue-count" class="queue-badge">0</span>
+                            </div>
+                            <div id="image-queue" class="image-queue-grid">
+                                <div id="queue-items" class="queue-items-grid">
+                                    <!-- Queue items will be inserted here -->
                                 </div>
-
-                                <div class="form-group">
-                                    <label for="notes-input" class="form-label">
-                                        Notes <span class="label-optional">optional</span>
-                                    </label>
-                                    <textarea id="notes-input" name="notes" class="form-textarea" rows="2" placeholder="Any context for this review..."></textarea>
+                                <div id="queue-empty" class="queue-empty">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                        <path d="M21 15l-5-5L5 21"></path>
+                                    </svg>
+                                    <p>No designs selected</p>
+                                    <span>Drop or browse to add</span>
                                 </div>
-
-                                <!-- Hidden email field with default value -->
-                                <input type="hidden" id="email-input" name="email" value="reviewer@bayer.com">
-
-                                <button type="submit" id="submit-btn" class="btn-submit">
-                                    <span class="btn-content">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="11" cy="11" r="8"></circle>
-                                            <path d="M21 21l-4.35-4.35"></path>
-                                        </svg>
-                                        <span class="btn-text">Analyze Design</span>
-                                    </span>
-                                    <span class="btn-loading hidden">
-                                        <svg class="spinner" width="20" height="20" viewBox="0 0 24 24">
-                                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" opacity="0.25"></circle>
-                                            <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"></path>
-                                        </svg>
-                                        <span>Analyzing...</span>
-                                    </span>
+                            </div>
+                            <div class="queue-actions">
+                                <button type="button" id="clear-queue" class="btn-clear-queue" disabled>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                                    </svg>
+                                    Clear All
                                 </button>
-                            </form>
+                            </div>
                         </div>
+
+                        <!-- Hidden inputs for form data -->
+                        <input type="hidden" id="design-type-select" name="designType" value="social-media">
+                        <input type="hidden" id="notes-input" name="notes" value="">
+                        <input type="hidden" id="email-input" name="email" value="reviewer@bayer.com">
+                    </div>
+                    
+                    <!-- Analyze Button -->
+                    <div class="analyze-button-wrapper">
+                        <button type="button" id="submit-btn" class="btn-submit-large" disabled>
+                            <span class="btn-content">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="M21 21l-4.35-4.35"></path>
+                                </svg>
+                                <span class="btn-text">Analyze <span id="btn-count">0</span> Designs</span>
+                            </span>
+                            <span class="btn-loading hidden">
+                                <svg class="spinner" width="24" height="24" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" opacity="0.25"></circle>
+                                    <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"></path>
+                                </svg>
+                                <span id="progress-text">Analyzing 0/0...</span>
+                            </span>
+                            <!-- Analysis Status Animation -->
+                            <div id="analysis-status" class="analysis-status hidden">
+                                <span id="analysis-status-dot" class="analysis-status-dot"></span>
+                                <span id="analysis-status-text" class="analysis-status-text">Initializing...</span>
+                            </div>
+                        </button>
                     </div>
                 </div>
             </section>
 
             <!-- Results Section - Below Upload -->
-            <section id="results-section" class="results-panel hidden">
-                <!-- Status Header: Badge + Score vertically stacked -->
-                <div class="status-header">
-                    <div id="status-badge" class="status-pill reviewing">
-                        <div class="status-spinner"></div>
-                        <span class="status-text">Reviewing...</span>
-                    </div>
-                    <div class="score-display">
-                        <span id="score-value" class="score-value">—</span>
-                        <span class="score-label">compliance score</span>
-                    </div>
-                </div>
-
-                <!-- Summary -->
-                <p id="summary-text" class="summary-text">Analyzing your design for brand compliance...</p>
-
-                <!-- Main Results Grid -->
+            <section id="results-section" class="panel results-panel hidden">
                 <div class="results-grid">
-                    <!-- Left: Categories -->
-                    <div class="categories-compact">
-                        <div class="cat-row" data-category="logo">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg>
-                            <span class="cat-label">Logo</span>
-                            <span id="logo-score" class="cat-score">—</span>
-                        </div>
-                        <div class="cat-row" data-category="colors">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle></svg>
-                            <span class="cat-label">Colors</span>
-                            <span id="colors-score" class="cat-score">—</span>
-                        </div>
-                        <div class="cat-row" data-category="typography">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
-                            <span class="cat-label">Type</span>
-                            <span id="typography-score" class="cat-score">—</span>
-                        </div>
-                        <div class="cat-row" data-category="accessibility">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="4" r="2"></circle><path d="M12 6v6m-4-2l4 2 4-2m-7 4l3 6m4-6l-3 6"></path></svg>
-                            <span class="cat-label">A11y</span>
-                            <span id="accessibility-score" class="cat-score">—</span>
-                        </div>
-                        <div class="cat-row" data-category="layout">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
-                            <span class="cat-label">Layout</span>
-                            <span id="layout-score" class="cat-score">—</span>
-                        </div>
-                    </div>
-
-                    <!-- Right: Live Analysis -->
-                    <div class="analysis-compact">
-                        <div class="analysis-header">
-                            <div class="pulse-dot"></div>
-                            <span>Analysis</span>
-                        </div>
-                        <div id="live-analysis-feed" class="live-feed">
-                            <!-- Live streaming messages will appear here -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Findings as expandable sections -->
-                <div class="findings-accordion">
-                    <div class="finding-group" data-type="violations">
-                        <button class="finding-group-header" aria-expanded="true">
-                            <div class="finding-group-info">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                    <!-- AI Chat Panel - Left Side on Desktop -->
+                    <div id="ai-chat-panel" class="ai-chat-panel">
+                        <div class="chat-header">
+                            <div class="chat-title">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                                 </svg>
-                                <span class="finding-group-title">Violations</span>
-                                <span id="violations-count" class="finding-group-count">0</span>
+                                <span>Design Review Summary</span>
                             </div>
-                            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M6 9l6 6 6-6"></path>
-                            </svg>
-                        </button>
-                        <div id="violations-list" class="finding-group-content"></div>
-                    </div>
-
-                    <div class="finding-group" data-type="warnings">
-                        <button class="finding-group-header" aria-expanded="false">
-                            <div class="finding-group-info">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            <div class="chat-export-buttons">
+                                <button id="export-pdf" class="btn-export" title="Export as PDF">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                    <span>PDF</span>
+                                </button>
+                                <button id="export-email" class="btn-export" title="Send via Email">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                        <polyline points="22,6 12,13 2,6"></polyline>
+                                    </svg>
+                                    <span>Email</span>
+                                </button>
+                                <button id="export-ppt" class="btn-export" title="Export as PowerPoint">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+                                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                                    </svg>
+                                    <span>PPT</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Chat Messages -->
+                        <div id="chat-messages" class="chat-messages">
+                            <!-- Messages will be inserted here -->
+                        </div>
+                        
+                        <!-- Quick Prompts -->
+                        <div class="chat-quick-prompts">
+                            <button class="quick-prompt-btn" data-prompt="Which designs need the most attention?">🔍 Critical Issues</button>
+                            <button class="quick-prompt-btn" data-prompt="Create an action item list for the design team.">📋 Action Items</button>
+                            <button class="quick-prompt-btn" data-prompt="What are the common patterns across these issues?">📊 Common Patterns</button>
+                            <button class="quick-prompt-btn" data-prompt="Which designs are ready for approval?">✅ Ready to Approve</button>
+                        </div>
+                        
+                        <!-- Chat Input -->
+                        <div class="chat-input-wrapper">
+                            <textarea id="chat-input" class="chat-input" rows="1" placeholder="Ask me anything about these designs..."></textarea>
+                            <button id="send-message" class="btn-send">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                                 </svg>
-                                <span class="finding-group-title">Warnings</span>
-                                <span id="warnings-count" class="finding-group-count">0</span>
-                            </div>
-                            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M6 9l6 6 6-6"></path>
-                            </svg>
-                        </button>
-                        <div id="warnings-list" class="finding-group-content collapsed"></div>
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="finding-group" data-type="recommendations">
-                        <button class="finding-group-header" aria-expanded="false">
-                            <div class="finding-group-info">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <path d="M12 16v-4M12 8h.01"></path>
-                                </svg>
-                                <span class="finding-group-title">Suggestions</span>
-                                <span id="recommendations-count" class="finding-group-count">0</span>
-                            </div>
-                            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M6 9l6 6 6-6"></path>
-                            </svg>
-                        </button>
-                        <div id="recommendations-list" class="finding-group-content collapsed"></div>
-                    </div>
-                </div>
-
-                <!-- Actions -->
-                <div class="results-actions">
-                    <button id="new-review-btn" class="btn-action btn-primary-action">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <!-- Individual Results - Right Side on Desktop -->
+                    <details class="results-detail" open>
+                        <summary class="results-detail-toggle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
-                        New Review
-                    </button>
-                    <button id="download-btn" class="btn-action">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        Export
-                    </button>
+                        <span>View Individual Results</span>
+                        <span id="results-count" class="results-count">0 designs</span>
+                    </summary>
+                    <div id="batch-results" class="batch-results">
+                        <!-- Individual result cards will be inserted here -->
+                    </div>
+                </details>
                 </div>
             </section>
         </main>
@@ -295,6 +283,54 @@
             <polyline points="22 4 12 14.01 9 11.01"></polyline>
         </svg>
         <span id="toast-message">Success!</span>
+    </div>
+
+    <!-- Result Detail Modal -->
+    <div id="result-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-filename" class="modal-title">design.png</h3>
+                <button id="modal-close" class="modal-close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-preview">
+                    <img id="modal-image" src="" alt="Design preview">
+                </div>
+                <div class="modal-details">
+                    <div class="modal-score-row">
+                        <div id="modal-status" class="status-pill status-pass">
+                            <span class="status-text">Approved</span>
+                        </div>
+                        <div class="modal-score">
+                            <span id="modal-score" class="score-value">85</span>
+                            <span class="score-label">score</span>
+                        </div>
+                    </div>
+                    <p id="modal-summary" class="modal-summary"></p>
+                    
+                    <div class="modal-findings">
+                        <div class="finding-section" data-type="violations">
+                            <h4><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Violations</h4>
+                            <ul id="modal-violations"></ul>
+                        </div>
+                        <div class="finding-section" data-type="warnings">
+                            <h4><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Warnings</h4>
+                            <ul id="modal-warnings"></ul>
+                        </div>
+                        <div class="finding-section" data-type="recommendations">
+                            <h4><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg> Suggestions</h4>
+                            <ul id="modal-recommendations"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>

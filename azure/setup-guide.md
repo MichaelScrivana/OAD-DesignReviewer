@@ -283,6 +283,176 @@ After completing all steps, you'll have:
 
 ---
 
+## Step 8: Upload Agent Instructions as Knowledge File
+
+To enhance your Foundry agent with RAG (Retrieval-Augmented Generation), upload the agent instructions as a knowledge file.
+
+### Option A: Azure AI Foundry Portal
+
+1. **Navigate to Azure AI Foundry** → Your Project → **Knowledge** → **+ Add Knowledge**
+2. **Select Source**: Choose **"Upload files"**
+3. **Upload Files**:
+   - Upload `azure/agent-instructions.md` from this repository
+   - Upload `brand-data/brands/OAD/brand-rules.json`
+   - Upload `brand-data/brands/OAD/scoring-rubric.json`
+4. **Configure Index**:
+   - **Index Name**: `oad-brand-guidelines`
+   - **Chunking Strategy**: `Sentence` (recommended for structured content)
+   - **Chunk Size**: 512 tokens
+   - **Overlap**: 128 tokens
+5. **Create Embeddings**: Let Azure create vector embeddings
+6. **Attach to Agent**: In your agent settings, connect this knowledge index
+
+### Option B: Upload to Azure Blob + AI Search Index
+
+```bash
+# Upload agent instructions to brand-config container
+az storage blob upload \
+  --container-name brand-config \
+  --name agent-instructions.md \
+  --file ./azure/agent-instructions.md \
+  --connection-string $CONNECTION_STRING \
+  --content-type text/markdown
+
+# Upload brand rules
+az storage blob upload \
+  --container-name brand-config \
+  --name brand-rules.json \
+  --file ./brand-data/brands/OAD/brand-rules.json \
+  --connection-string $CONNECTION_STRING \
+  --content-type application/json
+
+# Upload scoring rubric
+az storage blob upload \
+  --container-name brand-config \
+  --name scoring-rubric.json \
+  --file ./brand-data/brands/OAD/scoring-rubric.json \
+  --connection-string $CONNECTION_STRING \
+  --content-type application/json
+
+echo "Knowledge files uploaded"
+```
+
+Then create an Azure AI Search index pointing to these blobs for vector search.
+
+### Option C: Azure MCP Commands
+
+```bash
+# List existing knowledge indexes
+mcp_azure_mcp_foundry foundry_knowledge_index_list \
+  --endpoint "https://your-resource.services.ai.azure.com/api/projects/your-project"
+
+# View index schema (after creation)
+mcp_azure_mcp_foundry foundry_knowledge_index_schema \
+  --endpoint "https://your-resource.services.ai.azure.com/api/projects/your-project" \
+  --index "oad-brand-guidelines"
+```
+
+---
+
+## Step 9: Use Agent Instructions with the API
+
+The agent instructions can be used as a system prompt when calling Azure OpenAI directly.
+
+### Option A: Inline System Prompt (Current Approach)
+
+The `server.js` already uses `generateSystemPrompt()` to dynamically build instructions from the JSON files:
+
+```javascript
+// In server.js - callFoundryAgent function
+const brandData = loadBrandData('OAD');
+const systemPrompt = generateSystemPrompt(brandData);
+
+const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: [
+        { type: 'text', text: 'Analyze this design for brand compliance' },
+        { type: 'image_url', image_url: { url: 'data:image/png;base64,...' } }
+    ]}
+];
+```
+
+### Option B: Load from Agent Instructions File
+
+To use the comprehensive instructions directly:
+
+```javascript
+const fs = require('fs');
+const path = require('path');
+
+// Load agent instructions as system prompt
+function loadAgentInstructions() {
+    const instructionsPath = path.join(__dirname, 'azure', 'agent-instructions.md');
+    const instructions = fs.readFileSync(instructionsPath, 'utf8');
+    return instructions;
+}
+
+// Use in API call
+const systemPrompt = loadAgentInstructions();
+const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: query }
+];
+```
+
+### Option C: Azure Foundry Agent with Instructions
+
+When creating a Foundry agent, paste the contents of `agent-instructions.md` into the agent's **Instructions** field:
+
+1. Go to **Azure AI Foundry** → **Agents** → **+ Create Agent**
+2. **Name**: `OAD Brand Compliance Reviewer`
+3. **Model**: `gpt-4o` (vision-enabled)
+4. **Instructions**: Paste full contents of `azure/agent-instructions.md`
+5. **Knowledge**: Attach `oad-brand-guidelines` index (from Step 8)
+6. **Tools**: Enable **Code Interpreter** (optional, for detailed analysis)
+7. **Save and Deploy**
+
+Then call via MCP:
+
+```bash
+mcp_azure_mcp_foundry foundry_agents_connect \
+  --agent-id "oad-brand-compliance-reviewer" \
+  --query "Analyze this design image for OAD brand compliance" \
+  --endpoint "https://your-resource.services.ai.azure.com/api/projects/your-project"
+```
+
+### Option D: API Call with cURL
+
+```bash
+curl -X POST "https://YOUR_ENDPOINT.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview" \
+  -H "Content-Type: application/json" \
+  -H "api-key: YOUR_API_KEY" \
+  -d '{
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the One A Day (OAD) Brand Compliance Review Agent... [full instructions from agent-instructions.md]"
+      },
+      {
+        "role": "user",
+        "content": [
+          {"type": "text", "text": "Analyze this design for brand compliance"},
+          {"type": "image_url", "image_url": {"url": "data:image/png;base64,YOUR_BASE64_IMAGE"}}
+        ]
+      }
+    ],
+    "max_tokens": 2000,
+    "temperature": 0.3
+  }'
+```
+
+### Environment Variables
+
+Ensure these are set in your `.env` file:
+
+```bash
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
+AZURE_OPENAI_API_KEY=your-api-key
+AZURE_OPENAI_DEPLOYMENT=gpt-4o
+```
+
+---
+
 ## Next Steps
 
 1. ✅ Create Azure Storage Account
@@ -290,8 +460,10 @@ After completing all steps, you'll have:
 3. ✅ Upload `oad-design-standards.json`
 4. ✅ Generate SAS tokens
 5. ✅ Save SAS URLs securely
-6. 🔄 Configure n8n workflow with Azure URLs
-7. 🔄 Test end-to-end: Upload design → n8n fetches standards → Analysis → Save report
+6. ✅ Upload agent instructions as knowledge file
+7. ✅ Configure API with agent instructions
+8. 🔄 Configure n8n workflow with Azure URLs
+9. 🔄 Test end-to-end: Upload design → n8n fetches standards → Analysis → Save report
 
 ---
 

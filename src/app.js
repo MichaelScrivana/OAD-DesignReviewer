@@ -15,13 +15,28 @@ const CONFIG = {
 
     // File constraints
     maxFileSize: 10 * 1024 * 1024, // 10MB
-    allowedFileTypes: ['image/png', 'image/jpeg', 'image/svg+xml'],
-    apiTimeout: 120000 // 2 minutes (Foundry agents may take longer)
+    allowedFileTypes: ['image/png', 'image/jpeg', 'image/svg+xml', 'message/rfc822', 'application/pdf'],
+    apiTimeout: 120000, // 2 minutes (Foundry agents may take longer)
+    
+    // Analysis steps for animated status display
+    analysisSteps: [
+        { id: 'upload', label: 'Processing file...', duration: 500 },
+        { id: 'logo', label: 'Checking logo compliance...', duration: 800 },
+        { id: 'colors', label: 'Analyzing color palette...', duration: 800 },
+        { id: 'typography', label: 'Reviewing typography...', duration: 700 },
+        { id: 'accessibility', label: 'Verifying accessibility (WCAG AA)...', duration: 800 },
+        { id: 'imagery', label: 'Evaluating imagery...', duration: 600 },
+        { id: 'layout', label: 'Checking layout & hierarchy...', duration: 700 },
+        { id: 'scoring', label: 'Calculating compliance score...', duration: 500 },
+        { id: 'complete', label: 'Generating report...', duration: 400 }
+    ]
 };
 
-// State
-let uploadedFile = null;
-let currentResults = null;
+// State - Batch processing
+let uploadedFiles = []; // Array of {id, file, preview, status, results}
+let batchResults = []; // Array of completed results
+let isProcessing = false;
+let currentFileIndex = 0;
 
 // ============================================
 // DOM Elements
@@ -31,12 +46,15 @@ const elements = {
     uploadForm: document.getElementById('upload-form'),
     fileUpload: document.getElementById('file-upload'),
     dropZone: document.getElementById('drop-zone'),
-    previewContainer: document.getElementById('preview-container'),
-    previewImage: document.getElementById('preview-image'),
-    removeImageBtn: document.getElementById('remove-image'),
     submitBtn: document.getElementById('submit-btn'),
     uploadSection: document.getElementById('upload-section'),
     resultsSection: document.getElementById('results-section'),
+    imageQueue: document.getElementById('image-queue'),
+    queueItems: document.getElementById('queue-items'),
+    queueCount: document.getElementById('queue-count'),
+    btnCount: document.getElementById('btn-count'),
+    clearQueueBtn: document.getElementById('clear-queue'),
+    batchResults: document.getElementById('batch-results'),
     toast: document.getElementById('toast'),
     toastIcon: document.getElementById('toast-icon'),
     toastMessage: document.getElementById('toast-message')
@@ -57,34 +75,61 @@ function initializeEventListeners() {
     // File upload events
     elements.dropZone.addEventListener('click', () => elements.fileUpload.click());
     elements.fileUpload.addEventListener('change', handleFileSelect);
-    elements.removeImageBtn.addEventListener('click', handleFileRemove);
     
     // Drag and drop events
     elements.dropZone.addEventListener('dragover', handleDragOver);
     elements.dropZone.addEventListener('dragleave', handleDragLeave);
     elements.dropZone.addEventListener('drop', handleDrop);
     
-    // Form submission
-    elements.uploadForm.addEventListener('submit', handleFormSubmit);
+    // Queue management
+    if (elements.clearQueueBtn) {
+        elements.clearQueueBtn.addEventListener('click', clearQueue);
+    }
+    
+    // Submit button (direct click instead of form submit)
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', handleFormSubmit);
+    }
+    
+    // Brand selector change
+    const brandSelect = document.getElementById('brand-select');
+    if (brandSelect) {
+        brandSelect.addEventListener('change', handleBrandChange);
+    }
     
     // Results section interactions
-    setupTabNavigation();
     setupAccordions();
     setupResultsActions();
-    setupThoughtBubble();
-    setupGuidelinesPanel();
+    setupModal();
 }
 
-function setupThoughtBubble() {
-    const toggle = document.getElementById('thought-toggle');
-    const content = document.getElementById('thought-content');
-    
-    if (toggle && content) {
-        toggle.addEventListener('click', () => {
-            toggle.classList.toggle('expanded');
-            content.classList.toggle('expanded');
-        });
+function handleBrandChange(e) {
+    const brandName = e.target.options[e.target.selectedIndex].text;
+    const badgeName = document.getElementById('selected-brand-name');
+    if (badgeName) {
+        badgeName.textContent = brandName;
     }
+}
+
+function setupModal() {
+    const modal = document.getElementById('result-modal');
+    const closeBtn = document.getElementById('modal-close');
+    const backdrop = modal?.querySelector('.modal-backdrop');
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeModal);
+    }
+    if (backdrop) {
+        backdrop.addEventListener('click', closeModal);
+    }
+    
+    // ESC key to close
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+            closeModal();
+        }
+    });
 }
 
 function checkConfiguration() {
@@ -97,14 +142,12 @@ function checkConfiguration() {
 }
 
 // ============================================
-// File Upload Handling
+// File Upload Handling (Multi-file)
 // ============================================
 
 function handleFileSelect(event) {
-    const file = event.target.files[0];
-    if (file) {
-        validateAndPreviewFile(file);
-    }
+    const files = Array.from(event.target.files);
+    processFiles(files);
 }
 
 function handleDragOver(event) {
@@ -121,341 +164,1286 @@ function handleDrop(event) {
     event.preventDefault();
     elements.dropZone.classList.remove('drag-over');
     
-    const file = event.dataTransfer.files[0];
-    if (file) {
-        validateAndPreviewFile(file);
+    const files = Array.from(event.dataTransfer.files);
+    processFiles(files);
+}
+
+async function processFiles(files) {
+    for (const file of files) {
+        // Check if it's an email file
+        if (file.name.endsWith('.eml') || file.type === 'message/rfc822') {
+            await processEmailFile(file);
+        } else {
+            addFileToQueue(file);
+        }
     }
 }
 
-function validateAndPreviewFile(file) {
-    // Validate file type
-    if (!CONFIG.allowedFileTypes.includes(file.type)) {
-        showToast('Please upload a PNG, JPG, or SVG file', 'error');
+async function processEmailFile(emailFile) {
+    try {
+        showToast('Extracting images from email...', 'info');
+        
+        const formData = new FormData();
+        formData.append('email', emailFile);
+        
+        const response = await fetch(`${CONFIG.apiBaseUrl}/api/parse-email`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to parse email');
+        }
+        
+        const { images } = await response.json();
+        
+        if (images.length === 0) {
+            showToast('No images found in email', 'warning');
+            return;
+        }
+        
+        // Add extracted images to queue
+        for (const img of images) {
+            const fileObj = {
+                id: generateId(),
+                name: img.filename,
+                preview: `data:${img.mimeType};base64,${img.base64}`,
+                base64: img.base64,
+                mimeType: img.mimeType,
+                fromEmail: emailFile.name,
+                status: 'pending',
+                results: null
+            };
+            uploadedFiles.push(fileObj);
+        }
+        
+        updateQueueUI();
+        showToast(`Extracted ${images.length} image(s) from email`, 'success');
+        
+    } catch (error) {
+        console.error('Email parsing error:', error);
+        showToast('Failed to extract images from email', 'error');
+    }
+}
+
+// Process PDF files - extract pages or send directly to AI
+async function processPDFFile(pdfFile) {
+    try {
+        showToast('Processing PDF...', 'info');
+        
+        const formData = new FormData();
+        formData.append('pdf', pdfFile);
+        
+        const response = await fetch(`${CONFIG.apiBaseUrl}/api/parse-pdf`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to process PDF');
+        }
+        
+        const { images, message } = await response.json();
+        
+        if (!images || images.length === 0) {
+            showToast('Could not process PDF', 'warning');
+            return;
+        }
+        
+        // Add extracted pages/PDF to queue
+        for (const img of images) {
+            const fileObj = {
+                id: generateId(),
+                name: img.filename,
+                preview: img.mimeType === 'application/pdf' 
+                    ? createPDFPreview(pdfFile.name) 
+                    : `data:${img.mimeType};base64,${img.base64}`,
+                base64: img.base64,
+                mimeType: img.mimeType,
+                fromPDF: pdfFile.name,
+                pageNumber: img.pageNumber || 1,
+                status: 'pending',
+                results: null
+            };
+            uploadedFiles.push(fileObj);
+        }
+        
+        updateQueueUI();
+        showToast(message || `PDF ready for analysis`, 'success');
+        
+    } catch (error) {
+        console.error('PDF processing error:', error);
+        showToast('Failed to process PDF', 'error');
+    }
+}
+
+// Create a visual preview for PDF files
+function createPDFPreview(filename) {
+    // Create an SVG data URL as a placeholder for PDF preview
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+        <rect width="200" height="200" fill="#f8f9fa"/>
+        <rect x="50" y="30" width="100" height="130" fill="#fff" stroke="#dee2e6" stroke-width="2" rx="4"/>
+        <rect x="60" y="50" width="60" height="8" fill="#FF6600" rx="2"/>
+        <rect x="60" y="65" width="80" height="6" fill="#e9ecef" rx="2"/>
+        <rect x="60" y="78" width="70" height="6" fill="#e9ecef" rx="2"/>
+        <rect x="60" y="91" width="75" height="6" fill="#e9ecef" rx="2"/>
+        <rect x="60" y="104" width="65" height="6" fill="#e9ecef" rx="2"/>
+        <rect x="60" y="117" width="80" height="6" fill="#e9ecef" rx="2"/>
+        <rect x="60" y="130" width="50" height="6" fill="#e9ecef" rx="2"/>
+        <text x="100" y="180" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#6c757d">PDF</text>
+    </svg>`;
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
+function addFileToQueue(file) {
+    // Validate file type - now includes PDF
+    const isImage = ['image/png', 'image/jpeg', 'image/svg+xml'].includes(file.type);
+    const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    
+    if (!isImage && !isPDF) {
+        showToast(`Skipped ${file.name} - unsupported format`, 'warning');
         return;
     }
     
     // Validate file size
     if (file.size > CONFIG.maxFileSize) {
-        showToast('File size must be less than 10MB', 'error');
+        showToast(`Skipped ${file.name} - file too large (max 10MB)`, 'warning');
         return;
     }
     
-    // Store file and show preview
-    uploadedFile = file;
-    previewImage(file);
-}
-
-function previewImage(file) {
+    // Handle PDF files - send to server for processing
+    if (isPDF) {
+        processPDFFile(file);
+        return;
+    }
+    
+    // Create file object with preview
     const reader = new FileReader();
-    
     reader.onload = (e) => {
-        elements.previewImage.src = e.target.result;
-        elements.dropZone.querySelector('.drop-zone-content').style.display = 'none';
-        elements.previewContainer.classList.remove('hidden');
+        const fileObj = {
+            id: generateId(),
+            file: file,
+            name: file.name,
+            preview: e.target.result,
+            base64: e.target.result.split(',')[1],
+            mimeType: file.type,
+            status: 'pending',
+            results: null
+        };
+        uploadedFiles.push(fileObj);
+        updateQueueUI();
     };
-    
     reader.readAsDataURL(file);
 }
 
-function handleFileRemove(event) {
-    event.stopPropagation();
-    uploadedFile = null;
+function generateId() {
+    return 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+function updateQueueUI() {
+    const count = uploadedFiles.length;
+    
+    // Update count displays
+    if (elements.queueCount) {
+        elements.queueCount.textContent = count;
+    }
+    if (elements.btnCount) {
+        elements.btnCount.textContent = count;
+    }
+    
+    // Update submit button state
+    if (elements.submitBtn) {
+        elements.submitBtn.disabled = count === 0;
+    }
+    
+    // Update clear button state
+    if (elements.clearQueueBtn) {
+        elements.clearQueueBtn.disabled = count === 0;
+    }
+    
+    // Toggle empty state
+    const emptyState = document.getElementById('queue-empty');
+    if (emptyState) {
+        emptyState.classList.toggle('hidden', count > 0);
+    }
+    
+    // Render queue items as grid tiles
+    if (elements.queueItems) {
+        elements.queueItems.innerHTML = uploadedFiles.map(f => `
+            <div class="queue-tile ${f.status}" data-id="${f.id}">
+                <img src="${f.preview}" alt="${f.name}" class="queue-tile-img">
+                <div class="queue-tile-overlay">
+                    ${f.status === 'processing' ? '<div class="queue-tile-spinner"></div>' : ''}
+                    ${f.status === 'done' ? '<svg class="queue-tile-check" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+                    ${f.status === 'error' ? '<svg class="queue-tile-error" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' : ''}
+                </div>
+                ${f.status === 'pending' ? `
+                    <button class="queue-tile-remove" onclick="removeFromQueue('${f.id}')" title="Remove">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                ` : ''}
+            </div>
+        `).join('');
+    }
+}
+
+function getStatusText(status) {
+    const texts = {
+        pending: 'Waiting...',
+        processing: 'Analyzing...',
+        done: 'Complete',
+        error: 'Failed'
+    };
+    return texts[status] || status;
+}
+
+function removeFromQueue(id) {
+    uploadedFiles = uploadedFiles.filter(f => f.id !== id);
+    updateQueueUI();
+}
+
+function clearQueue() {
+    uploadedFiles = [];
+    updateQueueUI();
     elements.fileUpload.value = '';
-    elements.previewImage.src = '';
-    elements.previewContainer.classList.add('hidden');
-    elements.dropZone.querySelector('.drop-zone-content').style.display = 'flex';
+}
+
+// Make removeFromQueue available globally
+window.removeFromQueue = removeFromQueue;
+
+// ============================================
+// Analysis Status Animation
+// ============================================
+
+let analysisAnimationInterval = null;
+let currentStepIndex = 0;
+
+function startAnalysisAnimation() {
+    const statusContainer = document.getElementById('analysis-status');
+    if (!statusContainer) return;
+    
+    statusContainer.classList.remove('hidden');
+    currentStepIndex = 0;
+    
+    function updateStep() {
+        const steps = CONFIG.analysisSteps;
+        if (currentStepIndex >= steps.length) {
+            currentStepIndex = 0; // Loop back
+        }
+        
+        const step = steps[currentStepIndex];
+        const statusText = document.getElementById('analysis-status-text');
+        const statusDot = document.getElementById('analysis-status-dot');
+        
+        if (statusText) {
+            // Fade out, update, fade in
+            statusText.style.opacity = '0';
+            setTimeout(() => {
+                statusText.textContent = step.label;
+                statusText.style.opacity = '1';
+            }, 150);
+        }
+        
+        // Update dot color based on step
+        if (statusDot) {
+            statusDot.className = `analysis-status-dot step-${step.id}`;
+        }
+        
+        currentStepIndex++;
+    }
+    
+    // Initial update
+    updateStep();
+    
+    // Cycle through steps every 1.5 seconds
+    analysisAnimationInterval = setInterval(updateStep, 1500);
+}
+
+function stopAnalysisAnimation() {
+    if (analysisAnimationInterval) {
+        clearInterval(analysisAnimationInterval);
+        analysisAnimationInterval = null;
+    }
+    
+    const statusContainer = document.getElementById('analysis-status');
+    if (statusContainer) {
+        statusContainer.classList.add('hidden');
+    }
+    currentStepIndex = 0;
 }
 
 // ============================================
-// Form Submission & API Call
+// Batch Form Submission & Processing
 // ============================================
 
 async function handleFormSubmit(event) {
-    event.preventDefault();
+    if (event) event.preventDefault();
     
-    if (!uploadedFile) {
-        showToast('Please upload an image file', 'error');
+    if (uploadedFiles.length === 0) {
+        showToast('Please add images to the queue', 'error');
         return;
     }
     
     // Get form data
     const formData = {
         brandId: document.getElementById('brand-select').value,
-        designType: document.getElementById('design-type-select').value,
-        submittedBy: document.getElementById('email-input').value,
-        notes: document.getElementById('notes-input').value
+        designType: document.getElementById('design-type-select')?.value || 'social-media',
+        submittedBy: document.getElementById('email-input')?.value || 'reviewer@bayer.com',
+        notes: document.getElementById('notes-input')?.value || ''
     };
     
-    // Show loading state
+    // Start batch processing
+    isProcessing = true;
+    currentFileIndex = 0;
+    batchResults = [];
+    
+    // Show loading state and start animation
     setLoadingState(true);
+    startAnalysisAnimation();
     
-    // Show results panel with live feed early
-    showLiveAnalysisPanel();
+    // Show results section
+    elements.resultsSection.classList.remove('hidden');
+    elements.uploadSection.classList.add('hidden');
     
-    try {
-        // Convert file to base64
-        const imageBase64 = await fileToBase64(uploadedFile);
+    // Initialize results UI
+    initBatchResultsUI();
+    
+    // Process files sequentially
+    for (let i = 0; i < uploadedFiles.length; i++) {
+        currentFileIndex = i;
+        const fileObj = uploadedFiles[i];
         
-        // Prepare API payload
-        const payload = {
-            ...formData,
-            imageFile: imageBase64,
-            imageMimeType: uploadedFile.type,
-            imageName: uploadedFile.name,
-            timestamp: new Date().toISOString()
-        };
+        // Update progress
+        updateProgress(i + 1, uploadedFiles.length);
         
-        // Call n8n webhook with live updates
-        const results = await submitDesignReviewWithLiveFeed(payload);
+        // Update file status
+        fileObj.status = 'processing';
+        updateQueueUI();
+        addProcessingCard(fileObj);
         
-        // Display results
-        currentResults = results;
-        displayResults(results, formData);
+        try {
+            const result = await analyzeImage(fileObj, formData);
+            fileObj.status = 'done';
+            fileObj.results = result;
+            batchResults.push({ ...fileObj, ...result });
+            updateResultCard(fileObj.id, result);
+        } catch (error) {
+            console.error(`Error processing ${fileObj.name}:`, error);
+            fileObj.status = 'error';
+            fileObj.results = { error: error.message };
+            updateResultCard(fileObj.id, { error: error.message });
+        }
         
-        // Mark live feed as complete
-        finishLiveFeed();
-        
-        showToast('Analysis complete!', 'success');
-    } catch (error) {
-        console.error('Submission error:', error);
-        showToast(error.message || 'Failed to analyze design. Please try again.', 'error');
-        addLiveFeedMessage('❌ Error: ' + (error.message || 'Analysis failed'), true);
-        setLoadingState(false);
+        updateQueueUI();
+        updateBatchStats();
+    }
+    
+    // Finished
+    isProcessing = false;
+    setLoadingState(false);
+    stopAnalysisAnimation();
+    showToast(`Batch complete: ${uploadedFiles.length} designs analyzed`, 'success');
+    
+    // Reset chat for new batch
+    chatHistory = [];
+    conversationForExport = [];
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) chatMessages.innerHTML = '';
+    
+    // Auto-generate summary
+    setTimeout(() => {
+        generateAutoSummary();
+    }, 500);
+}
+
+function updateProgress(current, total) {
+    const progressText = document.getElementById('progress-text');
+    if (progressText) {
+        progressText.textContent = `Analyzing ${current}/${total}...`;
     }
 }
 
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            // Remove data URL prefix (e.g., "data:image/png;base64,")
-            const base64 = reader.result.split(',')[1];
-            resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+async function analyzeImage(fileObj, formData) {
+    // Build a short query - the system prompt on the server already has all the rules
+    const agentQuery = `Analyze this design for ${formData.brandId} brand compliance. Design type: ${formData.designType}.${formData.notes ? ` Notes: ${formData.notes}` : ''} Return JSON only.
+
+Image: data:${fileObj.mimeType};base64,${fileObj.base64}`;
+
+    const payload = {
+        agentId: CONFIG.agentId,
+        query: agentQuery,
+        endpoint: CONFIG.foundryEndpoint,
+        azureOpenaiEndpoint: CONFIG.azureOpenaiEndpoint,
+        azureOpenaiDeployment: CONFIG.azureOpenaiDeployment
+    };
+    
+    const response = await fetch(`${CONFIG.apiBaseUrl}/api/foundry-agent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Analysis failed: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Parse the response - it may be a string that needs JSON parsing
+    let result = data.response;
+    if (typeof result === 'string') {
+        const jsonMatch = result.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            try {
+                result = JSON.parse(jsonMatch[0]);
+            } catch (e) {
+                console.error('JSON parse error:', e);
+                result = { complianceScore: 0, status: 'ERROR', summary: 'Failed to parse response', violations: [] };
+            }
+        }
+    }
+    
+    // Normalize: ensure complianceScore exists (server may return "score" or "complianceScore")
+    if (result.score !== undefined && result.complianceScore === undefined) {
+        result.complianceScore = result.score;
+    }
+    if (result.complianceScore === undefined) {
+        result.complianceScore = 0;
+    }
+    
+    // Ensure arrays exist
+    result.violations = result.violations || [];
+    result.warnings = result.warnings || [];
+    result.recommendations = result.recommendations || [];
+    
+    return result;
+}
+
+// ============================================
+// Batch Results UI
+// ============================================
+
+function initBatchResultsUI() {
+    if (elements.batchResults) {
+        elements.batchResults.innerHTML = '';
+    }
+    updateBatchStats();
+}
+
+function addProcessingCard(fileObj) {
+    if (!elements.batchResults) return;
+    
+    const card = document.createElement('div');
+    card.className = 'result-card processing';
+    card.id = `result-${fileObj.id}`;
+    card.innerHTML = `
+        <div class="result-card-header">
+            <img src="${fileObj.preview}" alt="${fileObj.name}" class="result-thumb">
+            <div class="result-meta">
+                <div class="result-filename">${fileObj.name}</div>
+                <div class="result-status-row">
+                    <span class="result-badge">Analyzing</span>
+                    <div class="result-spinner"></div>
+                </div>
+            </div>
+        </div>
+        <div class="result-summary">Analyzing design for brand compliance...</div>
+    `;
+    elements.batchResults.appendChild(card);
+}
+
+function updateResultCard(fileId, result) {
+    const card = document.getElementById(`result-${fileId}`);
+    if (!card) return;
+    
+    const fileObj = uploadedFiles.find(f => f.id === fileId);
+    if (!fileObj) return;
+    
+    // Determine status
+    let status = 'pass';
+    let statusLabel = 'Approved';
+    const score = result.complianceScore || 0;
+    
+    if (result.error) {
+        status = 'fail';
+        statusLabel = 'Error';
+    } else if (score < 70) {
+        status = 'fail';
+        statusLabel = 'Not Approved';
+    } else if (score < 80) {
+        status = 'warning';
+        statusLabel = 'Needs Review';
+    }
+    
+    card.className = `result-card status-${status}`;
+    card.onclick = () => openResultModal(fileId);
+    
+    // Generate brief summary
+    const summary = generateBriefSummary(result);
+    
+    card.innerHTML = `
+        <div class="result-card-header">
+            <img src="${fileObj.preview}" alt="${fileObj.name}" class="result-thumb">
+            <div class="result-meta">
+                <div class="result-filename">${fileObj.name}</div>
+                <div class="result-status-row">
+                    <span class="result-badge">${statusLabel}</span>
+                    ${!result.error ? `<span class="result-score">${score}%</span>` : ''}
+                </div>
+            </div>
+        </div>
+        <div class="result-summary">${summary}</div>
+    `;
+}
+
+function generateBriefSummary(result) {
+    if (result.error) {
+        return `Analysis failed: ${result.error}`;
+    }
+    
+    const violations = result.violations?.length || 0;
+    const warnings = result.warnings?.length || 0;
+    
+    if (violations === 0 && warnings === 0) {
+        return 'Design meets all brand guidelines.';
+    }
+    
+    const parts = [];
+    if (violations > 0) {
+        parts.push(`${violations} violation${violations !== 1 ? 's' : ''}`);
+    }
+    if (warnings > 0) {
+        parts.push(`${warnings} warning${warnings !== 1 ? 's' : ''}`);
+    }
+    
+    // Include first issue if available
+    const firstIssue = result.violations?.[0]?.title || result.warnings?.[0]?.title;
+    if (firstIssue) {
+        return `${parts.join(', ')}: ${firstIssue}`;
+    }
+    
+    return `Found ${parts.join(' and ')}.`;
+}
+
+function updateBatchStats() {
+    const total = uploadedFiles.length;
+    const completed = uploadedFiles.filter(f => f.status === 'done' || f.status === 'error').length;
+    const passed = uploadedFiles.filter(f => f.results && !f.results.error && (f.results.complianceScore || 0) >= 80).length;
+    const warnings = uploadedFiles.filter(f => f.results && !f.results.error && (f.results.complianceScore || 0) >= 70 && (f.results.complianceScore || 0) < 80).length;
+    const failed = uploadedFiles.filter(f => f.results && (f.results.error || (f.results.complianceScore || 0) < 70)).length;
+    
+    // Update the results count in the collapsible section
+    const resultsCount = document.getElementById('results-count');
+    if (resultsCount) {
+        resultsCount.textContent = `${total} design${total !== 1 ? 's' : ''}`;
+    }
+}
+
+// ============================================
+// Result Modal
+// ============================================
+
+function openResultModal(fileId) {
+    const fileObj = uploadedFiles.find(f => f.id === fileId);
+    if (!fileObj || !fileObj.results) return;
+    
+    const modal = document.getElementById('result-modal');
+    const result = fileObj.results;
+    
+    // Populate modal
+    document.getElementById('modal-filename').textContent = fileObj.name;
+    document.getElementById('modal-image').src = fileObj.preview;
+    document.getElementById('modal-summary').textContent = result.summary || 'No summary available.';
+    
+    // Score and status
+    const score = result.complianceScore || 0;
+    let status = 'pass';
+    let statusLabel = 'Approved';
+    
+    if (result.error) {
+        status = 'fail';
+        statusLabel = 'Error';
+    } else if (score < 70) {
+        status = 'fail';
+        statusLabel = 'Not Approved';
+    } else if (score < 80) {
+        status = 'warning';
+        statusLabel = 'Needs Review';
+    }
+    
+    const statusPill = document.getElementById('modal-status');
+    statusPill.className = `status-pill status-${status}`;
+    statusPill.querySelector('.status-text').textContent = statusLabel;
+    
+    document.getElementById('modal-score').textContent = score;
+    
+    // Populate findings
+    populateModalFindings('modal-violations', result.violations || []);
+    populateModalFindings('modal-warnings', result.warnings || []);
+    populateModalFindings('modal-recommendations', result.recommendations || []);
+    
+    // Show modal
+    modal.classList.remove('hidden');
+}
+
+function populateModalFindings(containerId, items) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    if (items.length === 0) {
+        container.innerHTML = '<li class="empty">None</li>';
+    } else {
+        container.innerHTML = items.map(item => {
+            const text = typeof item === 'string' ? item : (item.title || item.message || 'Issue');
+            return `<li>${text}</li>`;
+        }).join('');
+    }
+}
+
+function closeModal() {
+    const modal = document.getElementById('result-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// ============================================
+// Results Actions & AI Chat
+// ============================================
+
+// Chat history for conversation context
+let chatHistory = [];
+
+function setupResultsActions() {
+    const newBatchBtn = document.getElementById('new-batch-btn');
+    const sendMessageBtn = document.getElementById('send-message');
+    const chatInput = document.getElementById('chat-input');
+    const exportPdfBtn = document.getElementById('export-pdf');
+    const exportEmailBtn = document.getElementById('export-email');
+    const exportPptBtn = document.getElementById('export-ppt');
+    
+    if (newBatchBtn) newBatchBtn.addEventListener('click', startNewBatch);
+    if (sendMessageBtn) sendMessageBtn.addEventListener('click', sendChatMessage);
+    if (exportPdfBtn) exportPdfBtn.addEventListener('click', () => exportToPDF());
+    if (exportEmailBtn) exportEmailBtn.addEventListener('click', () => exportToEmail());
+    if (exportPptBtn) exportPptBtn.addEventListener('click', () => exportToPPT());
+    
+    // Enter to send (Shift+Enter for new line)
+    if (chatInput) {
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+        
+        // Auto-resize textarea
+        chatInput.addEventListener('input', () => {
+            chatInput.style.height = 'auto';
+            chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+        });
+    }
+    
+    // Quick prompt buttons
+    document.querySelectorAll('.quick-prompt-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const prompt = btn.dataset.prompt;
+            const chatInput = document.getElementById('chat-input');
+            if (chatInput) {
+                chatInput.value = prompt;
+                chatInput.focus();
+            }
+        });
     });
 }
 
-async function submitDesignReview(payload) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CONFIG.apiTimeout);
+// Store conversation for export
+let conversationForExport = [];
 
+async function sendChatMessage() {
+    const chatInput = document.getElementById('chat-input');
+    const message = chatInput?.value?.trim();
+    
+    if (!message) return;
+    
+    if (batchResults.length === 0) {
+        showToast('No results to discuss', 'warning');
+        return;
+    }
+    
+    // Clear input
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+    
+    // Add user message to chat
+    addChatMessage(message, 'user');
+    chatHistory.push({ role: 'user', content: message });
+    
+    // Show loading indicator
+    const loadingId = addLoadingMessage();
+    
     try {
-        // Prepare Foundry agent query
-        const agentQuery = `Please analyze this design for One A Day (OAD) brand compliance.
-
-Design Details:
-- Brand: ${payload.brandId}
-- Design Type: ${payload.designType}
-- Submitted by: ${payload.submittedBy}
-${payload.notes ? `- Notes: ${payload.notes}` : ''}
-
-Please check for:
-1. Logo usage and clearspace requirements
-2. Approved color palette compliance (#FF6600 primary, #333333 secondary)
-3. Typography standards (Helvetica Neue, approved sizes and weights)
-4. Overall brand consistency and accessibility (WCAG AA contrast ratios)
-
-Provide a detailed analysis with specific violations, warnings, and recommendations. Include a compliance score from 0-100.
-
-Image: data:${payload.imageMimeType};base64,${payload.imageFile}`;
-
-        // Call Foundry agent
-        const foundryPayload = {
-            agentId: CONFIG.agentId,
-            query: agentQuery,
-            endpoint: CONFIG.foundryEndpoint,
-            azureOpenaiEndpoint: CONFIG.azureOpenaiEndpoint,
-            azureOpenaiDeployment: CONFIG.azureOpenaiDeployment
-        };
-
-        console.log('Calling Foundry agent with payload:', foundryPayload);
-
-        const response = await fetch(`${CONFIG.apiBaseUrl}/api/foundry-agent`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(foundryPayload),
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Foundry Agent Error: ${response.status} ${response.statusText} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        console.log('Foundry agent response:', data);
-
-        // Transform Foundry response to expected format
-        return transformFoundryResponse(data, payload);
-
+        const response = await callAIChat(message);
+        
+        // Remove loading and add AI response
+        removeLoadingMessage(loadingId);
+        addChatMessage(response, 'ai');
+        chatHistory.push({ role: 'assistant', content: response });
+        conversationForExport.push({ user: message, ai: response });
+        
     } catch (error) {
-        clearTimeout(timeoutId);
-
-        if (error.name === 'AbortError') {
-            throw new Error('Request timed out. Foundry agent analysis may take longer. Please try again.');
-        }
-
-        throw error;
+        console.error('Chat error:', error);
+        removeLoadingMessage(loadingId);
+        addChatMessage('Sorry, I encountered an error. Please try again.', 'ai');
     }
 }
 
-function transformFoundryResponse(foundryData, originalPayload) {
-    // Extract the agent's response
-    const agentResponse = foundryData.response || foundryData.answer || foundryData.content || '';
-
-    // Parse the response to extract structured data
-    // This is a basic parser - you may need to adjust based on your agent's output format
-    const parsedResults = parseAgentResponse(agentResponse);
-
-    // Return in the expected format for the UI
-    return {
-        complianceScore: parsedResults.score ?? 0, // Use 0 if no score found
-        status: parsedResults.score >= 90 ? 'passed' : parsedResults.score >= 70 ? 'warnings' : 'violations',
-        summary: parsedResults.summary || 'Analysis completed by Foundry agent',
-        violations: parsedResults.violations || [],
-        warnings: parsedResults.warnings || [],
-        recommendations: parsedResults.recommendations || [],
-        detailedFindings: parsedResults.detailedFindings || {},
-        metadata: {
-            analyzedBy: 'Azure AI Foundry Agent',
-            timestamp: new Date().toISOString(),
-            brandId: originalPayload.brandId,
-            designType: originalPayload.designType,
-            submittedBy: originalPayload.submittedBy,
-            agentId: CONFIG.agentId,
-            rawResponse: agentResponse
-        }
-    };
+function addChatMessage(content, type) {
+    const messagesContainer = document.getElementById('chat-messages');
+    if (!messagesContainer) return;
+    
+    const avatar = type === 'ai' ? '✨' : '👤';
+    const formattedContent = type === 'ai' ? formatAIResponse(content) : escapeHtml(content);
+    
+    const messageHtml = `
+        <div class="chat-message ${type}">
+            <div class="message-avatar">${avatar}</div>
+            <div class="message-content">${formattedContent}</div>
+        </div>
+    `;
+    
+    messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
-function parseAgentResponse(responseText) {
-    // Basic parsing logic - adjust based on your agent's response format
-    const results = {
-        score: null, // Don't default to 85 - let it be extracted
-        summary: '',
-        violations: [],
-        warnings: [],
-        recommendations: [],
-        detailedFindings: {}
-    };
+function addLoadingMessage() {
+    const messagesContainer = document.getElementById('chat-messages');
+    if (!messagesContainer) return null;
+    
+    const id = 'loading-' + Date.now();
+    const loadingHtml = `
+        <div id="${id}" class="chat-message ai">
+            <div class="message-avatar">✨</div>
+            <div class="message-content">
+                <div class="message-loading">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    messagesContainer.insertAdjacentHTML('beforeend', loadingHtml);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    return id;
+}
 
+function removeLoadingMessage(id) {
+    const loadingEl = document.getElementById(id);
+    if (loadingEl) loadingEl.remove();
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function callAIChat(userMessage, detailedContext) {
+    let resultsContext;
+    if (detailedContext) {
+        // Use provided detailed context (for auto-summary)
+        resultsContext = detailedContext;
+    } else {
+        // Build compact context for follow-up chat
+        resultsContext = batchResults.map(r => {
+            const score = r.complianceScore || 0;
+            const topViolation = r.violations?.[0]?.description || r.violations?.[0] || '';
+            return `${r.name}: ${score}/100${topViolation ? ', ' + topViolation : ''}`;
+        }).join('; ');
+    }
+    
+    // Last 4 messages for conversation continuity
+    const recentChat = chatHistory.slice(-4).map(msg => 
+        `${msg.role === 'user' ? 'U' : 'A'}: ${msg.content}`
+    ).join('\n');
+    
+    const aiQuery = `Batch results:\n${resultsContext}\n${recentChat ? recentChat + '\n' : ''}U: ${userMessage}`;
+
+    const payload = {
+        agentId: CONFIG.agentId,
+        query: aiQuery,
+        endpoint: CONFIG.foundryEndpoint,
+        azureOpenaiEndpoint: CONFIG.azureOpenaiEndpoint,
+        azureOpenaiDeployment: CONFIG.azureOpenaiDeployment
+    };
+    
+    const response = await fetch(`${CONFIG.apiBaseUrl}/api/foundry-agent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+        throw new Error('Failed to get AI response');
+    }
+    
+    const data = await response.json();
+    return data.response || 'No response generated';
+}
+
+async function generateAutoSummary() {
+    // Build a client-side summary first (no AI call needed for basic stats)
+    const total = batchResults.length;
+    const passed = batchResults.filter(r => (r.complianceScore || 0) >= 80).length;
+    const failed = batchResults.filter(r => (r.complianceScore || 0) < 70).length;
+    const needsReview = total - passed - failed;
+    
+    // Show static summary immediately
+    let staticSummary = `Reviewed ${total} design${total !== 1 ? 's' : ''}: `;
+    const parts = [];
+    if (passed > 0) parts.push(`${passed} approved`);
+    if (needsReview > 0) parts.push(`${needsReview} needs review`);
+    if (failed > 0) parts.push(`${failed} not approved`);
+    staticSummary += parts.join(', ') + '.';
+    
+    addChatMessage(staticSummary, 'ai');
+    
+    // Build detailed per-design context for the AI
+    const detailedContext = batchResults.map(r => {
+        const score = r.complianceScore || 0;
+        const status = score >= 80 ? 'Approved' : score >= 70 ? 'Needs Review' : 'Not Approved';
+        const violations = (r.violations || []).map(v => typeof v === 'string' ? v : v.description || v.title || '').filter(Boolean);
+        const warnings = (r.warnings || []).map(w => typeof w === 'string' ? w : w.description || w.title || '').filter(Boolean);
+        const recs = (r.recommendations || []).filter(Boolean);
+        let detail = `- ${r.name}: ${score}/100 (${status})`;
+        if (violations.length) detail += `\n  Violations: ${violations.join('; ')}`;
+        if (warnings.length) detail += `\n  Warnings: ${warnings.join('; ')}`;
+        if (recs.length) detail += `\n  Recommendations: ${recs.join('; ')}`;
+        return detail;
+    }).join('\n');
+    
+    const loadingId = addLoadingMessage();
+    
     try {
-        // First, try to parse as JSON if the response looks like JSON
-        if (responseText.trim().startsWith('{')) {
-            try {
-                const jsonResponse = JSON.parse(responseText);
-                if (jsonResponse.complianceScore !== undefined) {
-                    results.score = parseInt(jsonResponse.complianceScore);
-                } else if (jsonResponse.score !== undefined) {
-                    results.score = parseInt(jsonResponse.score);
-                } else if (jsonResponse.overallScore !== undefined) {
-                    results.score = parseInt(jsonResponse.overallScore);
+        const response = await callAIChat(
+            `Give a brief review for each design (1-2 sentences each highlighting key issues or pass status), then end with an overall recommendation for the batch.`,
+            detailedContext
+        );
+        
+        removeLoadingMessage(loadingId);
+        addChatMessage(response, 'ai');
+        chatHistory.push({ role: 'assistant', content: response });
+        conversationForExport.push({ user: '[Auto-summary]', ai: `${staticSummary}\n${response}` });
+        
+    } catch (error) {
+        console.error('Auto-summary error:', error);
+        removeLoadingMessage(loadingId);
+        // Static summary already shown, so no need for error message
+    }
+}
+
+function formatAIResponse(text) {
+    // Convert markdown-like formatting to HTML
+    let html = text
+        .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^## (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^# (.+)$/gm, '<h4>$1</h4>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+    
+    // Wrap in paragraphs
+    html = '<p>' + html + '</p>';
+    
+    // Fix list items
+    html = html.replace(/<\/li><br>/g, '</li>');
+    html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+    html = html.replace(/<\/ul><ul>/g, '');
+    
+    return html;
+}
+
+function copyAIResponse() {
+    if (!lastAIResponse) return;
+    
+    navigator.clipboard.writeText(lastAIResponse).then(() => {
+        showToast('Copied to clipboard', 'success');
+    }).catch(() => {
+        showToast('Failed to copy', 'error');
+    });
+}
+
+function getConversationText() {
+    // Build text from chat conversation
+    return conversationForExport.map(conv => 
+        `Q: ${conv.user}\n\nA: ${conv.ai}`
+    ).join('\n\n---\n\n');
+}
+
+function exportToPDF() {
+    if (batchResults.length === 0) {
+        showToast('No results to export', 'warning');
+        return;
+    }
+    
+    // Fallback: create a printable HTML page
+    const printWindow = window.open('', '_blank');
+    const brandId = document.getElementById('brand-select').value;
+    const conversationHtml = conversationForExport.map(conv => `
+        <div class="conversation-item">
+            <div class="user-msg"><strong>Question:</strong> ${escapeHtml(conv.user)}</div>
+            <div class="ai-msg">${formatAIResponse(conv.ai)}</div>
+        </div>
+    `).join('');
+    
+    // Build design results with images
+    const designResultsHtml = batchResults.map((r, i) => {
+        const score = r.complianceScore || 0;
+        const status = score >= 80 ? 'Approved' : score >= 70 ? 'Needs Review' : 'Not Approved';
+        const statusClass = score >= 80 ? 'pass' : score >= 70 ? 'warning' : 'fail';
+        const matchedFile = uploadedFiles.find(f => f.name === r.name);
+        const imageData = matchedFile ? (matchedFile.base64 ? `data:${matchedFile.mimeType};base64,${matchedFile.base64}` : matchedFile.preview) : null;
+        
+        return `
+            <div class="design-result">
+                <h3>${i + 1}. ${r.name}</h3>
+                <div class="design-content">
+                    ${imageData ? `<div class="design-image"><img src="${imageData}" alt="${r.name}"></div>` : ''}
+                    <div class="design-info">
+                        <p><strong>Status:</strong> <span class="${statusClass}">${status}</span></p>
+                        <p><strong>Score:</strong> ${score}/100</p>
+                        ${r.summary ? `<p><strong>Summary:</strong> ${r.summary}</p>` : ''}
+                        ${r.violations?.length > 0 ? `
+                            <p><strong>Issues Found:</strong></p>
+                            <ul>${r.violations.slice(0, 5).map(v => `<li>${v.title || v}</li>`).join('')}</ul>
+                        ` : '<p class="pass">No issues found</p>'}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Design Review Report - ${getBrandName(brandId)}</title>
+            <style>
+                body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; }
+                h1 { color: #FF6600; border-bottom: 2px solid #FF6600; padding-bottom: 10px; }
+                h2 { color: #333; margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+                h3 { color: #444; margin-top: 20px; }
+                .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
+                .meta { color: #666; font-size: 14px; }
+                table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background: #f5f5f5; }
+                .pass { color: #10B981; font-weight: bold; }
+                .warning { color: #F59E0B; font-weight: bold; }
+                .fail { color: #EF4444; font-weight: bold; }
+                ul { padding-left: 20px; }
+                .conversation-item { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; }
+                .user-msg { color: #666; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+                .ai-msg { color: #333; line-height: 1.6; }
+                .design-result { margin: 25px 0; padding: 20px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; page-break-inside: avoid; }
+                .design-content { display: flex; gap: 20px; margin-top: 15px; }
+                .design-image { flex: 0 0 200px; }
+                .design-image img { max-width: 200px; max-height: 200px; object-fit: contain; border: 1px solid #ddd; border-radius: 4px; }
+                .design-info { flex: 1; }
+                @media print { body { margin: 0; } .design-result { break-inside: avoid; } }
+            </style>
+        </head>
+        <body>
+            <h1>Design Review Report</h1>
+            <div class="header">
+                <div class="meta">
+                    <p><strong>Brand:</strong> ${getBrandName(brandId)}</p>
+                    <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                    <p><strong>Total Designs:</strong> ${batchResults.length}</p>
+                </div>
+            </div>
+            
+            <h2>Design Results</h2>
+            ${designResultsHtml}
+            
+            <h2>AI Analysis & Discussion</h2>
+            ${conversationHtml || '<p>No AI conversation recorded.</p>'}
+            
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px;">
+                Generated by OAD Design Reviewer • ${new Date().toLocaleString()}
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+    showToast('PDF ready to print', 'success');
+}
+
+function exportToEmail() {
+    if (batchResults.length === 0) {
+        showToast('No results to export', 'warning');
+        return;
+    }
+    
+    const brandId = document.getElementById('brand-select').value;
+    const brandName = getBrandName(brandId);
+    const date = new Date().toLocaleDateString();
+    const conversationText = getConversationText();
+    
+    const passed = batchResults.filter(r => (r.complianceScore || 0) >= 80).length;
+    const needsReview = batchResults.filter(r => (r.complianceScore || 0) >= 70 && (r.complianceScore || 0) < 80).length;
+    const failed = batchResults.filter(r => (r.complianceScore || 0) < 70).length;
+    
+    // Build per-design HTML rows with images
+    const designRows = batchResults.map(r => {
+        const score = r.complianceScore || 0;
+        const statusLabel = score >= 80 ? 'Approved' : score >= 70 ? 'Needs Review' : 'Not Approved';
+        const statusColor = score >= 80 ? '#10B981' : score >= 70 ? '#F59E0B' : '#EF4444';
+        const violations = (r.violations || []).map(v => typeof v === 'string' ? v : v.description || '').filter(Boolean);
+        const warnings = (r.warnings || []).map(w => typeof w === 'string' ? w : w.description || '').filter(Boolean);
+        const imgSrc = r.preview || '';
+        
+        let issuesHtml = '';
+        if (violations.length) {
+            issuesHtml += violations.map(v => `<div style="color:#EF4444;font-size:13px;">• ${v}</div>`).join('');
+        }
+        if (warnings.length) {
+            issuesHtml += warnings.map(w => `<div style="color:#F59E0B;font-size:13px;">• ${w}</div>`).join('');
+        }
+        if (!issuesHtml) {
+            issuesHtml = '<div style="color:#10B981;font-size:13px;">No issues found</div>';
+        }
+        
+        return `
+            <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:12px;vertical-align:top;width:120px;">
+                    ${imgSrc ? `<img src="${imgSrc}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;border:1px solid #ddd;" />` : '<div style="width:100px;height:100px;background:#f0f0f0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px;">No preview</div>'}
+                </td>
+                <td style="padding:12px;vertical-align:top;">
+                    <div style="font-weight:600;font-size:15px;margin-bottom:4px;">${r.name}</div>
+                    <div style="margin-bottom:6px;">
+                        <span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;color:white;background:${statusColor};">${statusLabel}</span>
+                        <span style="margin-left:8px;font-size:14px;font-weight:600;">${score}/100</span>
+                    </div>
+                    ${issuesHtml}
+                </td>
+            </tr>`;
+    }).join('');
+    
+    const emailHtml = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Design Review Report</title></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:680px;margin:0 auto;padding:24px;color:#333;">
+    <div style="background:linear-gradient(135deg,#FF6600,#E55A00);padding:24px;border-radius:12px;color:white;margin-bottom:24px;">
+        <h1 style="margin:0;font-size:22px;">Design Review Report</h1>
+        <div style="opacity:0.9;margin-top:4px;">${brandName} — ${date}</div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:24px;">
+        <div style="flex:1;background:#D1FAE5;padding:14px;border-radius:10px;text-align:center;">
+            <div style="font-size:24px;font-weight:700;color:#10B981;">${passed}</div>
+            <div style="font-size:12px;color:#065F46;">Approved</div>
+        </div>
+        <div style="flex:1;background:#FEF3C7;padding:14px;border-radius:10px;text-align:center;">
+            <div style="font-size:24px;font-weight:700;color:#F59E0B;">${needsReview}</div>
+            <div style="font-size:12px;color:#92400E;">Needs Review</div>
+        </div>
+        <div style="flex:1;background:#FEE2E2;padding:14px;border-radius:10px;text-align:center;">
+            <div style="font-size:24px;font-weight:700;color:#EF4444;">${failed}</div>
+            <div style="font-size:12px;color:#991B1B;">Not Approved</div>
+        </div>
+    </div>
+
+    <h2 style="font-size:16px;margin-bottom:12px;border-bottom:2px solid #FF6600;padding-bottom:6px;">Design Results</h2>
+    <table style="width:100%;border-collapse:collapse;">
+        ${designRows}
+    </table>
+
+    ${conversationText ? `
+    <h2 style="font-size:16px;margin-top:24px;margin-bottom:12px;border-bottom:2px solid #FF6600;padding-bottom:6px;">AI Analysis</h2>
+    <div style="background:#f9f9f9;padding:16px;border-radius:10px;font-size:14px;line-height:1.6;white-space:pre-wrap;">${conversationText}</div>
+    ` : ''}
+
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #eee;font-size:12px;color:#999;text-align:center;">
+        Generated by OAD Design Reviewer
+    </div>
+</body>
+</html>`;
+
+    // Open in a new window so user can copy or use browser email
+    const emailWindow = window.open('', '_blank');
+    emailWindow.document.write(emailHtml);
+    emailWindow.document.close();
+    
+    // Add a copy/send toolbar at the top
+    const toolbar = emailWindow.document.createElement('div');
+    toolbar.style.cssText = 'position:sticky;top:0;background:#333;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:100;font-family:sans-serif;';
+    toolbar.innerHTML = `
+        <button onclick="document.querySelector('body > div:first-child').style.display='none'; window.print();" style="padding:8px 16px;background:#FF6600;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Print / Save PDF</button>
+        <button id="copyBtn" style="padding:8px 16px;background:#3B82F6;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Copy to Clipboard</button>
+        <button onclick="window.location.href='mailto:?subject=${encodeURIComponent(`Design Review Report - ${brandName} - ${date}`)}&body=${encodeURIComponent('Please see the attached design review report.')}'" style="padding:8px 16px;background:#10B981;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Open in Email Client</button>
+        <span style="color:#aaa;font-size:13px;margin-left:auto;">Select all (Ctrl+A) → Copy → Paste into email to include images</span>
+    `;
+    emailWindow.document.body.insertBefore(toolbar, emailWindow.document.body.firstChild);
+    
+    // Copy button handler
+    emailWindow.document.getElementById('copyBtn').addEventListener('click', () => {
+        const range = emailWindow.document.createRange();
+        range.selectNodeContents(emailWindow.document.body);
+        // Exclude the toolbar from selection
+        range.setStartAfter(toolbar);
+        const sel = emailWindow.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        emailWindow.document.execCommand('copy');
+        sel.removeAllRanges();
+        emailWindow.document.getElementById('copyBtn').textContent = 'Copied!';
+        setTimeout(() => emailWindow.document.getElementById('copyBtn').textContent = 'Copy to Clipboard', 2000);
+    });
+    
+    showToast('Email report generated with images', 'success');
+}
+
+async function exportToPPT() {
+    if (batchResults.length === 0) {
+        showToast('No results to export', 'warning');
+        return;
+    }
+    
+    // Check if PptxGenJS is available
+    if (typeof PptxGenJS === 'undefined') {
+        // Load from CDN
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
+        script.onload = () => createPPT();
+        document.head.appendChild(script);
+        return;
+    }
+    createPPT();
+}
+
+function createPPT() {
+    const pptx = new PptxGenJS();
+    const brandId = document.getElementById('brand-select').value;
+    
+    pptx.title = `Design Review Report - ${getBrandName(brandId)}`;
+    pptx.author = 'OAD Design Reviewer';
+    
+    // Title slide
+    let slide = pptx.addSlide();
+    slide.addText('Design Review Report', { x: 0.5, y: 2, w: '90%', h: 1, fontSize: 36, bold: true, color: 'FF6600' });
+    slide.addText(`Brand: ${getBrandName(brandId)}`, { x: 0.5, y: 3.2, w: '90%', fontSize: 18, color: '666666' });
+    slide.addText(`Date: ${new Date().toLocaleDateString()}`, { x: 0.5, y: 3.7, w: '90%', fontSize: 14, color: '999999' });
+    slide.addText(`${batchResults.length} Designs Reviewed`, { x: 0.5, y: 4.2, w: '90%', fontSize: 14, color: '999999' });
+    
+    // Summary slide
+    slide = pptx.addSlide();
+    slide.addText('Results Summary', { x: 0.5, y: 0.5, w: '90%', fontSize: 24, bold: true, color: '333333' });
+    
+    const passed = batchResults.filter(r => (r.complianceScore || 0) >= 80).length;
+    const warnings = batchResults.filter(r => (r.complianceScore || 0) >= 70 && (r.complianceScore || 0) < 80).length;
+    const failed = batchResults.filter(r => (r.complianceScore || 0) < 70).length;
+    
+    const tableData = [
+        [{ text: 'Status', options: { bold: true, fill: 'f5f5f5' } }, { text: 'Count', options: { bold: true, fill: 'f5f5f5' } }],
+        ['✅ Approved', String(passed)],
+        ['⚠️ Needs Review', String(warnings)],
+        ['❌ Not Approved', String(failed)]
+    ];
+    
+    slide.addTable(tableData, { x: 0.5, y: 1.2, w: 4, fontSize: 14, border: { pt: 1, color: 'cccccc' } });
+    
+    // Individual results slides with images (up to 10)
+    batchResults.slice(0, 10).forEach((result, i) => {
+        slide = pptx.addSlide();
+        const score = result.complianceScore || 0;
+        const status = score >= 80 ? 'Approved' : score >= 70 ? 'Needs Review' : 'Not Approved';
+        const statusColor = score >= 80 ? '10B981' : score >= 70 ? 'F59E0B' : 'EF4444';
+        
+        slide.addText(result.name, { x: 0.5, y: 0.3, w: '90%', fontSize: 18, bold: true, color: '333333' });
+        slide.addText(`${status} • Score: ${score}/100`, { x: 0.5, y: 0.7, w: '90%', fontSize: 12, color: statusColor });
+        
+        // Try to add image
+        const matchedFile = uploadedFiles.find(f => f.name === result.name);
+        if (matchedFile) {
+            const imageData = matchedFile.base64 ? `data:${matchedFile.mimeType};base64,${matchedFile.base64}` : matchedFile.preview;
+            if (imageData) {
+                try {
+                    slide.addImage({ 
+                        data: imageData, 
+                        x: 0.5, 
+                        y: 1.1, 
+                        w: 3, 
+                        h: 3,
+                        sizing: { type: 'contain', w: 3, h: 3 }
+                    });
+                } catch (e) {
+                    console.warn('Could not add image to PPT:', e);
                 }
-                
-                if (jsonResponse.summary) results.summary = jsonResponse.summary;
-                if (jsonResponse.violations) results.violations = jsonResponse.violations;
-                if (jsonResponse.warnings) results.warnings = jsonResponse.warnings;
-                if (jsonResponse.recommendations) results.recommendations = jsonResponse.recommendations;
-                if (jsonResponse.categoryScores) results.categoryScores = jsonResponse.categoryScores;
-                
-                return results;
-            } catch (e) {
-                // Not valid JSON, continue with text parsing
             }
         }
         
-        // Look for compliance score in various formats
-        const scorePatterns = [
-            /compliance\s*score[:\s]*([\d.]+)/i,
-            /overall\s*score[:\s]*([\d.]+)/i,
-            /score[:\s]*([\d.]+)\s*(?:out of|\/)\s*100/i,
-            /score[:\s]*([\d.]+)%/i,
-            /score[:\s]*([\d.]+)/i,
-            /([\d.]+)\s*%\s*(?:compliance|compliant)/i,
-            /([\d.]+)\s*\/\s*100/i
-        ];
+        // Add text content on the right
+        const textX = 4;
+        const textW = 5.5;
         
-        for (const pattern of scorePatterns) {
-            const match = responseText.match(pattern);
-            if (match) {
-                const parsedScore = parseFloat(match[1]);
-                if (parsedScore >= 0 && parsedScore <= 100) {
-                    results.score = Math.round(parsedScore);
-                    break;
-                }
-            }
+        if (result.summary) {
+            slide.addText(result.summary, { x: textX, y: 1.1, w: textW, fontSize: 11, color: '666666' });
         }
-
-        // Extract sections using common patterns
-        const sections = responseText.split(/\n\s*\n/);
-
-        for (const section of sections) {
-            const lowerSection = section.toLowerCase();
-
-            if (lowerSection.includes('violation') || lowerSection.includes('critical')) {
-                results.violations = parseListItems(section);
-            } else if (lowerSection.includes('warning') || lowerSection.includes('caution')) {
-                results.warnings = parseListItems(section);
-            } else if (lowerSection.includes('recommendation') || lowerSection.includes('suggestion')) {
-                results.recommendations = parseListItems(section);
-            } else if (lowerSection.includes('logo') || lowerSection.includes('color') ||
-                      lowerSection.includes('typography') || lowerSection.includes('accessibility')) {
-                // Detailed findings
-                if (lowerSection.includes('logo')) {
-                    results.detailedFindings.logo = parseDetailedSection(section);
-                } else if (lowerSection.includes('color')) {
-                    results.detailedFindings.colors = parseDetailedSection(section);
-                } else if (lowerSection.includes('typography') || lowerSection.includes('font')) {
-                    results.detailedFindings.typography = parseDetailedSection(section);
-                } else if (lowerSection.includes('accessibility')) {
-                    results.detailedFindings.accessibility = parseDetailedSection(section);
-                }
-            }
+        
+        // Add violations if any
+        if (result.violations?.length > 0) {
+            slide.addText('Issues:', { x: textX, y: 2.5, fontSize: 12, bold: true, color: 'EF4444' });
+            const violations = result.violations.slice(0, 4).map(v => `• ${v.title || v}`).join('\n');
+            slide.addText(violations, { x: textX, y: 2.9, w: textW, fontSize: 10, color: '666666' });
+        } else {
+            slide.addText('✓ No issues found', { x: textX, y: 2.5, fontSize: 12, color: '10B981' });
         }
-
-        // Set summary from first paragraph or first few sentences
-        const sentences = responseText.split(/[.!?]+/).filter(s => s.trim().length > 10);
-        results.summary = sentences.slice(0, 2).join('. ').trim();
-
-    } catch (error) {
-        console.warn('Error parsing agent response:', error);
-        results.summary = responseText.substring(0, 200) + '...';
-    }
-
-    return results;
+    });
+    
+    // AI Analysis slide
+    slide = pptx.addSlide();
+    slide.addText('AI Analysis Summary', { x: 0.5, y: 0.5, w: '90%', fontSize: 24, bold: true, color: '333333' });
+    
+    // Use conversation text for PPT
+    const conversationText = getConversationText();
+    const aiSummary = conversationText.length > 1500 ? conversationText.substring(0, 1500) + '...' : conversationText;
+    slide.addText(aiSummary || 'No AI conversation recorded.', { x: 0.5, y: 1.2, w: 9, h: 4, fontSize: 11, color: '666666', valign: 'top' });
+    
+    pptx.writeFile({ fileName: `design-review-report-${Date.now()}.pptx` });
+    showToast('PowerPoint exported successfully', 'success');
 }
 
-function parseListItems(text) {
-    // Extract bullet points, numbered lists, or lines starting with dashes
-    const items = [];
-    const lines = text.split('\n');
-
-    for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.match(/^[-•*]\s/) || trimmed.match(/^\d+\.\s/) || trimmed.length > 20) {
-            const cleanItem = trimmed.replace(/^[-•*\d]+\.\s*/, '').trim();
-            if (cleanItem.length > 0) {
-                items.push(cleanItem);
-            }
-        }
+function startNewBatch() {
+    // Reset state
+    uploadedFiles = [];
+    batchResults = [];
+    isProcessing = false;
+    currentFileIndex = 0;
+    chatHistory = [];
+    conversationForExport = [];
+    
+    // Reset UI
+    elements.resultsSection.classList.add('hidden');
+    elements.uploadSection.classList.remove('hidden');
+    elements.fileUpload.value = '';
+    updateQueueUI();
+    
+    if (elements.batchResults) {
+        elements.batchResults.innerHTML = '';
     }
-
-    return items;
-}
-
-function parseDetailedSection(text) {
-    // Return the section content for detailed display
-    return {
-        content: text.trim(),
-        status: text.toLowerCase().includes('violation') ? 'error' :
-                text.toLowerCase().includes('warning') ? 'warning' : 'success'
-    };
+    
+    // Clear chat messages
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) chatMessages.innerHTML = '';
 }
 
 function setLoadingState(isLoading) {
@@ -472,879 +1460,6 @@ function setLoadingState(isLoading) {
         if (btnLoading) btnLoading.classList.add('hidden');
     }
 }
-
-// ============================================
-// Live Analysis Feed
-// ============================================
-
-function showLiveAnalysisPanel() {
-    // Show results panel early (before API returns)
-    elements.resultsSection.classList.remove('hidden');
-    elements.uploadSection.classList.add('hidden');
-    
-    // Reset status pill to reviewing state
-    const statusPill = document.getElementById('status-badge');
-    if (statusPill) {
-        statusPill.className = 'status-pill reviewing';
-        const statusText = statusPill.querySelector('.status-text');
-        if (statusText) statusText.textContent = 'Reviewing...';
-    }
-    
-    // Reset score display
-    const scoreValue = document.getElementById('score-value');
-    if (scoreValue) {
-        scoreValue.textContent = '—';
-        scoreValue.style.color = 'var(--text-secondary)';
-    }
-    
-    // Reset summary
-    const summaryText = document.getElementById('summary-text');
-    if (summaryText) {
-        summaryText.textContent = 'Analyzing your design for brand compliance...';
-    }
-    
-    // Collapse all finding groups and reset counts
-    document.querySelectorAll('.finding-group').forEach(group => {
-        group.classList.remove('expanded');
-    });
-    document.querySelectorAll('.count-badge').forEach(badge => {
-        badge.textContent = '0';
-    });
-    
-    // Clear previous live feed
-    const liveFeed = document.getElementById('live-analysis-feed');
-    if (liveFeed) {
-        liveFeed.innerHTML = '';
-    }
-    
-    // Start pulse animation
-    const pulseDot = document.querySelector('.pulse-dot');
-    if (pulseDot) {
-        pulseDot.classList.remove('done');
-    }
-    
-    // Scroll to results
-    elements.resultsSection.scrollIntoView({ behavior: 'smooth' });
-    
-    // Add initial message
-    addLiveFeedMessage('🚀 Starting design analysis...');
-}
-
-function addLiveFeedMessage(message, isComplete = false) {
-    const liveFeed = document.getElementById('live-analysis-feed');
-    if (!liveFeed) return;
-    
-    const msgDiv = document.createElement('div');
-    msgDiv.className = 'feed-message' + (isComplete ? ' complete' : '');
-    msgDiv.textContent = message;
-    
-    liveFeed.appendChild(msgDiv);
-    liveFeed.scrollTop = liveFeed.scrollHeight;
-}
-
-function finishLiveFeed() {
-    const pulseDot = document.querySelector('.pulse-dot');
-    if (pulseDot) {
-        pulseDot.classList.add('done');
-    }
-    
-    addLiveFeedMessage('✅ Analysis complete!', true);
-}
-
-async function submitDesignReviewWithLiveFeed(payload) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CONFIG.apiTimeout);
-    
-    // Simulate live updates during API call
-    const liveMessages = [
-        { delay: 500, msg: '📷 Processing uploaded image...' },
-        { delay: 1500, msg: '🔍 Scanning design elements...' },
-        { delay: 3000, msg: '🎨 Checking logo placement & clearspace...' },
-        { delay: 4500, msg: '🌈 Verifying color palette compliance...' },
-        { delay: 6000, msg: '✏️ Analyzing typography usage...' },
-        { delay: 7500, msg: '♿ Evaluating accessibility standards...' },
-        { delay: 9000, msg: '📐 Reviewing layout composition...' },
-        { delay: 11000, msg: '📊 Calculating compliance score...' }
-    ];
-    
-    // Start showing live messages
-    liveMessages.forEach(({ delay, msg }) => {
-        setTimeout(() => addLiveFeedMessage(msg), delay);
-    });
-
-    try {
-        // Prepare Foundry agent query
-        const agentQuery = `Please analyze this design for One A Day (OAD) brand compliance.
-
-Design Details:
-- Brand: ${payload.brandId}
-- Design Type: ${payload.designType}
-- Submitted by: ${payload.submittedBy}
-${payload.notes ? `- Notes: ${payload.notes}` : ''}
-
-Please check for:
-1. Logo usage and clearspace requirements
-2. Approved color palette compliance (#FF6600 primary, #333333 secondary)
-3. Typography standards (Helvetica Neue, approved sizes and weights)
-4. Overall brand consistency and accessibility (WCAG AA contrast ratios)
-
-Provide a detailed analysis with specific violations, warnings, and recommendations. Include a compliance score from 0-100.
-
-Image: data:${payload.imageMimeType};base64,${payload.imageFile}`;
-
-        // Call Foundry agent
-        const foundryPayload = {
-            agentId: CONFIG.agentId,
-            query: agentQuery,
-            endpoint: CONFIG.foundryEndpoint,
-            azureOpenaiEndpoint: CONFIG.azureOpenaiEndpoint,
-            azureOpenaiDeployment: CONFIG.azureOpenaiDeployment
-        };
-
-        console.log('Calling Foundry agent with payload:', foundryPayload);
-
-        const response = await fetch(`${CONFIG.apiBaseUrl}/api/foundry-agent`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(foundryPayload),
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Foundry Agent Error: ${response.status} ${response.statusText} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        console.log('Raw agent response:', data);
-        
-        // Add message for result processing
-        addLiveFeedMessage('🧠 Processing AI response...');
-        
-        // Parse the agent response
-        const parsedResponse = parseAgentResponse(data.response || data.content || JSON.stringify(data));
-        
-        // Create structured results
-        const results = {
-            complianceScore: parsedResponse.score || 75,
-            status: parsedResponse.score >= 80 ? 'approved' : (parsedResponse.score >= 60 ? 'needs_revision' : 'rejected'),
-            summary: parsedResponse.summary || 'Design has been analyzed for brand compliance.',
-            grade: calculateGrade(parsedResponse.score),
-            violations: parsedResponse.violations || [],
-            warnings: parsedResponse.warnings || [],
-            recommendations: parsedResponse.recommendations || [],
-            findings: parsedResponse.detailedFindings || {},
-            categoryScores: parsedResponse.categoryScores || generateDefaultCategoryScores(parsedResponse.score),
-            rawResponse: data.response || data.content
-        };
-
-        return results;
-    } catch (error) {
-        clearTimeout(timeoutId);
-        console.error('API Error:', error);
-        throw error;
-    }
-}
-
-function generateDefaultCategoryScores(overallScore) {
-    // Generate reasonable category scores based on overall
-    const variance = 10;
-    const baseScore = overallScore || 75;
-    
-    return {
-        logo: { 
-            score: Math.min(25, Math.round((baseScore + (Math.random() - 0.5) * variance) * 0.25)), 
-            maxScore: 25,
-            percentage: Math.min(100, baseScore + (Math.random() - 0.5) * variance)
-        },
-        colors: { 
-            score: Math.min(25, Math.round((baseScore + (Math.random() - 0.5) * variance) * 0.25)), 
-            maxScore: 25,
-            percentage: Math.min(100, baseScore + (Math.random() - 0.5) * variance)
-        },
-        typography: { 
-            score: Math.min(20, Math.round((baseScore + (Math.random() - 0.5) * variance) * 0.20)), 
-            maxScore: 20,
-            percentage: Math.min(100, baseScore + (Math.random() - 0.5) * variance)
-        },
-        accessibility: { 
-            score: Math.min(20, Math.round((baseScore + (Math.random() - 0.5) * variance) * 0.20)), 
-            maxScore: 20,
-            percentage: Math.min(100, baseScore + (Math.random() - 0.5) * variance)
-        },
-        layout: { 
-            score: Math.min(10, Math.round((baseScore + (Math.random() - 0.5) * variance) * 0.10)), 
-            maxScore: 10,
-            percentage: Math.min(100, baseScore + (Math.random() - 0.5) * variance)
-        }
-    };
-}
-
-function calculateGrade(score) {
-    if (score >= 90) return 'A';
-    if (score >= 80) return 'B';
-    if (score >= 70) return 'C';
-    if (score >= 60) return 'D';
-    return 'F';
-}
-
-// ============================================
-// Results Display
-// ============================================
-
-function displayResults(results, formData) {
-    // Hide upload section, show results
-    elements.uploadSection.classList.add('hidden');
-    elements.resultsSection.classList.remove('hidden');
-    setLoadingState(false);
-    
-    // Scroll to results
-    elements.resultsSection.scrollIntoView({ behavior: 'smooth' });
-    
-    // Store results for later use
-    currentResults = results;
-    
-    // Populate results
-    updateResultsHeader(results, formData);
-    updateScoreDisplay(results.complianceScore);
-    updateFindings(results);
-    updateThoughtBubble(results);
-}
-
-function updateThoughtBubble(results) {
-    const narrativeEl = document.getElementById('ai-analysis-narrative');
-    
-    if (!narrativeEl) return;
-    
-    // Generate natural language narrative from results
-    const narrative = generateAnalysisNarrative(results);
-    narrativeEl.innerHTML = narrative;
-}
-
-function generateAnalysisNarrative(results) {
-    const score = results.complianceScore || 0;
-    const violations = results.violations || [];
-    const warnings = results.warnings || [];
-    const recommendations = results.recommendations || [];
-    
-    // Build narrative steps
-    let html = '';
-    
-    // Step 1: Initial scan
-    html += `
-        <div class="analysis-step">
-            <div class="step-icon">🔍</div>
-            <div class="step-content">
-                <div class="step-title">Scanned Your Design</div>
-                <div class="step-detail">I analyzed the uploaded image to identify visual elements including logos, colors, typography, and layout composition.</div>
-            </div>
-        </div>
-    `;
-    
-    // Step 2: Brand rules check
-    html += `
-        <div class="analysis-step">
-            <div class="step-icon">📋</div>
-            <div class="step-content">
-                <div class="step-title">Compared Against OAD Brand Guidelines</div>
-                <div class="step-detail">I checked your design against 35+ brand rules including logo usage, color palette (#FF6600 primary), Proxima Nova typography, and WCAG accessibility standards.</div>
-            </div>
-        </div>
-    `;
-    
-    // Step 3: Issues found
-    const totalIssues = violations.length + warnings.length;
-    if (totalIssues > 0) {
-        html += `
-            <div class="analysis-step">
-                <div class="step-icon">${violations.length > 0 ? '⚠️' : '💡'}</div>
-                <div class="step-content">
-                    <div class="step-title">Identified ${totalIssues} Area${totalIssues > 1 ? 's' : ''} for Attention</div>
-                    <div class="step-detail">
-                        ${violations.length > 0 ? `Found ${violations.length} violation${violations.length > 1 ? 's' : ''} that need${violations.length === 1 ? 's' : ''} to be fixed. ` : ''}
-                        ${warnings.length > 0 ? `Noted ${warnings.length} warning${warnings.length > 1 ? 's' : ''} to review. ` : ''}
-                        ${recommendations.length > 0 ? `Plus ${recommendations.length} suggestion${recommendations.length > 1 ? 's' : ''} for improvement.` : ''}
-                    </div>
-                </div>
-            </div>
-        `;
-    } else {
-        html += `
-            <div class="analysis-step">
-                <div class="step-icon">✅</div>
-                <div class="step-content">
-                    <div class="step-title">No Major Issues Found</div>
-                    <div class="step-detail">Your design follows the OAD brand guidelines well. Great job maintaining brand consistency!</div>
-                </div>
-            </div>
-        `;
-    }
-    
-    // Step 4: Score calculation
-    let scoreExplanation = '';
-    if (score >= 90) {
-        scoreExplanation = 'Excellent work! This design is ready for production with minimal or no changes needed.';
-    } else if (score >= 80) {
-        scoreExplanation = 'Good overall compliance. A few minor adjustments would make this design perfect.';
-    } else if (score >= 70) {
-        scoreExplanation = 'Acceptable but needs some revisions before approval. Check the violations and warnings above.';
-    } else {
-        scoreExplanation = 'This design needs significant revisions to meet brand standards. Please address the violations listed.';
-    }
-    
-    html += `
-        <div class="analysis-step">
-            <div class="step-icon">📊</div>
-            <div class="step-content">
-                <div class="step-title">Calculated Compliance Score: ${score}%</div>
-                <div class="step-detail">${scoreExplanation}</div>
-            </div>
-        </div>
-    `;
-    
-    return html;
-}
-
-function updateResultsHeader(results, formData) {
-    // Status pill
-    const statusPill = document.getElementById('status-badge');
-    const statusText = statusPill.querySelector('.status-text');
-    
-    // Determine status from score or results
-    let status = 'pass';
-    let statusLabel = 'Approved';
-    
-    if (results.status) {
-        status = results.status.toLowerCase().includes('reject') ? 'fail' :
-                 results.status.toLowerCase().includes('revision') ? 'warning' : 'pass';
-        statusLabel = results.status.replace(/_/g, ' ');
-    } else if (results.complianceScore < 70) {
-        status = 'fail';
-        statusLabel = 'Not Approved';
-    } else if (results.complianceScore < 80) {
-        status = 'warning';
-        statusLabel = 'Needs Review';
-    }
-    
-    // Remove reviewing class and add status class
-    statusPill.classList.remove('reviewing');
-    statusPill.className = `status-pill status-${status}`;
-    if (statusText) statusText.textContent = statusLabel;
-    
-    // Summary text
-    document.getElementById('summary-text').textContent = results.summary;
-    
-    // Update category scores if available
-    if (results.categoryScores) {
-        updateCategoryScores(results.categoryScores);
-    }
-}
-
-function updateCategoryScores(categoryScores) {
-    const categories = ['logo', 'colors', 'typography', 'accessibility', 'layout'];
-    
-    categories.forEach(cat => {
-        const scoreData = categoryScores[cat];
-        if (scoreData) {
-            const scoreEl = document.getElementById(`${cat}-score`);
-            const percentage = scoreData.percentage || (scoreData.score / scoreData.maxScore * 100);
-            
-            if (scoreEl) {
-                scoreEl.textContent = `${Math.round(percentage)}%`;
-                
-                // Color based on percentage
-                if (percentage >= 80) {
-                    scoreEl.style.color = 'var(--success)';
-                } else if (percentage >= 60) {
-                    scoreEl.style.color = 'var(--warning)';
-                } else {
-                    scoreEl.style.color = 'var(--error)';
-                }
-            }
-        }
-    });
-}
-
-function updateScoreDisplay(score) {
-    const scoreValue = document.getElementById('score-value');
-    
-    // Animate score value
-    animateValue(scoreValue, 0, score, 1000);
-    
-    // Update color based on score
-    setTimeout(() => {
-        if (score >= 80) {
-            scoreValue.style.color = 'var(--success)';
-        } else if (score >= 60) {
-            scoreValue.style.color = 'var(--warning)';
-        } else {
-            scoreValue.style.color = 'var(--error)';
-        }
-    }, 1000);
-}
-
-function updateFindings(results) {
-    const violations = results.violations || [];
-    const warnings = results.warnings || [];
-    const recommendations = results.recommendations || [];
-    
-    // Update counts in headers
-    const violationsCount = document.getElementById('violations-count');
-    const warningsCount = document.getElementById('warnings-count');
-    const recommendationsCount = document.getElementById('recommendations-count');
-    
-    if (violationsCount) violationsCount.textContent = violations.length;
-    if (warningsCount) warningsCount.textContent = warnings.length;
-    if (recommendationsCount) recommendationsCount.textContent = recommendations.length;
-    
-    // Populate content
-    populateFindingGroup('violations-list', violations, 'error');
-    populateFindingGroup('warnings-list', warnings, 'warning');
-    populateFindingGroup('recommendations-list', recommendations, 'info');
-    
-    // Auto-expand first group with items
-    document.querySelectorAll('.finding-group').forEach(g => g.classList.remove('expanded'));
-    
-    if (violations.length > 0) {
-        const group = document.querySelector('[data-type="violations"]');
-        if (group) group.classList.add('expanded');
-    } else if (warnings.length > 0) {
-        const group = document.querySelector('[data-type="warnings"]');
-        if (group) group.classList.add('expanded');
-    } else if (recommendations.length > 0) {
-        const group = document.querySelector('[data-type="recommendations"]');
-        if (group) group.classList.add('expanded');
-    }
-}
-
-function populateFindingGroup(containerId, items, severity) {
-    const content = document.getElementById(containerId);
-    if (!content) return;
-    
-    // Remove collapsed class to allow display
-    content.classList.remove('collapsed');
-    
-    // Extract type name from container ID (e.g., 'violations-list' -> 'violations')
-    const typeName = containerId.replace('-list', '');
-    
-    if (items.length === 0) {
-        content.innerHTML = `<div class="finding-empty">No ${typeName} found</div>`;
-        return;
-    }
-    
-    const icons = {
-        error: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
-        warning: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-        info: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>'
-    };
-    
-    content.innerHTML = items.map(item => `
-        <div class="finding-item finding-${severity}">
-            <div class="finding-icon">${icons[severity]}</div>
-            <div class="finding-content">
-                <div class="finding-title">${item.title || item.message || item}</div>
-                ${item.description ? `<div class="finding-description">${item.description}</div>` : ''}
-                ${item.location ? `<div class="finding-location">${item.location}</div>` : ''}
-            </div>
-        </div>
-    `).join('');
-}
-
-function updateScoreEmoji(container, score) {
-    if (!container) return;
-    
-    // SVG emoji faces based on score
-    let emoji, color;
-    
-    if (score >= 90) {
-        // Excellent - Big smile with stars
-        color = 'var(--success)';
-        emoji = `
-            <svg viewBox="0 0 36 36" class="emoji-face">
-                <circle cx="18" cy="18" r="16" fill="${color}" opacity="0.15"/>
-                <circle cx="18" cy="18" r="16" fill="none" stroke="${color}" stroke-width="2"/>
-                <circle cx="12" cy="14" r="2" fill="${color}"/>
-                <circle cx="24" cy="14" r="2" fill="${color}"/>
-                <path d="M10 22 Q18 30 26 22" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
-                <path d="M6 8 L8 12 L4 12 Z" fill="${color}" opacity="0.6"/>
-                <path d="M30 8 L32 12 L28 12 Z" fill="${color}" opacity="0.6"/>
-            </svg>`;
-    } else if (score >= 80) {
-        // Good - Happy smile
-        color = 'var(--success)';
-        emoji = `
-            <svg viewBox="0 0 36 36" class="emoji-face">
-                <circle cx="18" cy="18" r="16" fill="${color}" opacity="0.15"/>
-                <circle cx="18" cy="18" r="16" fill="none" stroke="${color}" stroke-width="2"/>
-                <circle cx="12" cy="14" r="2" fill="${color}"/>
-                <circle cx="24" cy="14" r="2" fill="${color}"/>
-                <path d="M11 22 Q18 28 25 22" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
-            </svg>`;
-    } else if (score >= 70) {
-        // Okay - Slight smile
-        color = 'var(--warning)';
-        emoji = `
-            <svg viewBox="0 0 36 36" class="emoji-face">
-                <circle cx="18" cy="18" r="16" fill="${color}" opacity="0.15"/>
-                <circle cx="18" cy="18" r="16" fill="none" stroke="${color}" stroke-width="2"/>
-                <circle cx="12" cy="14" r="2" fill="${color}"/>
-                <circle cx="24" cy="14" r="2" fill="${color}"/>
-                <path d="M12 23 Q18 26 24 23" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
-            </svg>`;
-    } else if (score >= 50) {
-        // Concerned - Neutral/worried
-        color = 'var(--warning)';
-        emoji = `
-            <svg viewBox="0 0 36 36" class="emoji-face">
-                <circle cx="18" cy="18" r="16" fill="${color}" opacity="0.15"/>
-                <circle cx="18" cy="18" r="16" fill="none" stroke="${color}" stroke-width="2"/>
-                <circle cx="12" cy="14" r="2" fill="${color}"/>
-                <circle cx="24" cy="14" r="2" fill="${color}"/>
-                <line x1="12" y1="24" x2="24" y2="24" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
-            </svg>`;
-    } else {
-        // Poor - Sad face
-        color = 'var(--error)';
-        emoji = `
-            <svg viewBox="0 0 36 36" class="emoji-face">
-                <circle cx="18" cy="18" r="16" fill="${color}" opacity="0.15"/>
-                <circle cx="18" cy="18" r="16" fill="none" stroke="${color}" stroke-width="2"/>
-                <circle cx="12" cy="14" r="2" fill="${color}"/>
-                <circle cx="24" cy="14" r="2" fill="${color}"/>
-                <path d="M12 26 Q18 20 24 26" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
-            </svg>`;
-    }
-    
-    container.innerHTML = emoji;
-}
-
-function animateValue(element, start, end, duration) {
-    const range = end - start;
-    const increment = range / (duration / 16);
-    let current = start;
-    
-    const timer = setInterval(() => {
-        current += increment;
-        if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
-            current = end;
-            clearInterval(timer);
-        }
-        element.textContent = Math.round(current);
-    }, 16);
-}
-
-function updateTabs(results) {
-    // Get violations, warnings, recommendations from results
-    // Handle both old format (criticalViolations) and new JSON format (violations)
-    const violations = results.violations || results.criticalViolations || [];
-    const warnings = results.warnings || [];
-    const recommendations = results.recommendations || [];
-    
-    // Update tab counts
-    document.getElementById('violations-count').textContent = violations.length;
-    document.getElementById('warnings-count').textContent = warnings.length;
-    document.getElementById('recommendations-count').textContent = recommendations.length;
-    
-    // Populate tab content
-    populateFindingsList('violations-list', violations, 'critical');
-    populateFindingsList('warnings-list', warnings, 'major');
-    populateFindingsList('recommendations-list', recommendations, 'minor');
-}
-
-function populateFindingsList(containerId, items, type) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    if (!items || items.length === 0) {
-        container.innerHTML = createEmptyState(type);
-        return;
-    }
-    
-    let validItemCount = 0;
-    items.forEach(item => {
-        const findingElement = createFindingItem(item, type);
-        if (findingElement) {
-            container.appendChild(findingElement);
-            validItemCount++;
-        }
-    });
-    
-    // If all items were filtered out, show empty state
-    if (validItemCount === 0) {
-        container.innerHTML = createEmptyState(type);
-    }
-}
-
-function createFindingItem(item, type) {
-    const itemEl = document.createElement('div');
-    itemEl.className = `finding-item ${type}`;
-    
-    // Handle both string items and object items with ruleId/description
-    const isObject = typeof item === 'object' && item !== null;
-    
-    // Skip items that look like raw JSON data (status, passOrFail, scores, etc.)
-    if (isObject && (item.status || item.passOrFail || item.score !== undefined || item.maxScore !== undefined)) {
-        return null; // Skip metadata objects
-    }
-    
-    let description = '';
-    let ruleId = null;
-    let category = null;
-    let recommendation = null;
-    
-    if (isObject) {
-        description = item.description || item.message || item.text || item.issue || '';
-        ruleId = item.ruleId || item.rule || null;
-        category = item.category || item.type || null;
-        recommendation = item.recommendation || item.fix || item.suggestion || null;
-        
-        // If still no description, skip this item (it's probably metadata)
-        if (!description) {
-            return null;
-        }
-    } else if (typeof item === 'string') {
-        description = item;
-    } else {
-        return null; // Skip non-string, non-object items
-    }
-    
-    // Get source URL for this finding
-    const sourceInfo = getSourceUrlForFinding(description);
-    
-    itemEl.innerHTML = `
-        <div class="finding-header">
-            <span class="finding-icon">${type === 'critical' ? '❌' : type === 'major' ? '⚠️' : '💡'}</span>
-            <div class="finding-content">
-                <div class="finding-text">${description}</div>
-                ${ruleId ? `<span class="finding-rule-tag">${ruleId}</span>` : ''}
-                ${recommendation ? `<p class="finding-recommendation">💡 ${recommendation}</p>` : ''}
-                ${sourceInfo && sourceInfo.url ? `
-                    <a href="${sourceInfo.url}" target="_blank" class="finding-source-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                            <polyline points="15 3 21 3 21 9"></polyline>
-                            <line x1="10" y1="14" x2="21" y2="3"></line>
-                        </svg>
-                        See guideline${sourceInfo.page ? ` (p.${sourceInfo.page})` : ''}
-                    </a>
-                ` : ''}
-            </div>
-        </div>
-    `;
-    
-    return itemEl;
-}
-
-function createEmptyState(type) {
-    const messages = {
-        critical: 'No critical violations found! 🎉',
-        major: 'No warnings to address',
-        minor: 'No additional tips at this time',
-        warning: 'No warnings found',
-        info: 'No recommendations at this time',
-        success: 'All checks passed'
-    };
-    
-    return `
-        <div class="empty-state">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M8 12l2 2 4-4"></path>
-            </svg>
-            <p>${messages[type] || 'No items found'}</p>
-        </div>
-    `;
-}
-
-function populatePassedChecks(containerId, results) {
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-    
-    const passedChecks = [];
-    
-    // Generate passed checks based on findings
-    if (results.findings) {
-        if (results.findings.logo?.present) {
-            passedChecks.push('Logo is present in the design');
-        }
-        if (results.findings.accessibility?.contrastCheck === 'pass') {
-            passedChecks.push('Color contrast meets WCAG AA standards (4.5:1)');
-        }
-        if (results.findings.colors?.detectedColors?.some(c => c === '#FF6600')) {
-            passedChecks.push('Primary brand color (#FF6600) is used');
-        }
-    }
-    
-    // Add generic passed checks if score is decent
-    if (results.complianceScore >= 70) {
-        passedChecks.push('Overall design layout follows brand guidelines');
-        passedChecks.push('Design maintains professional appearance');
-    }
-    
-    if (passedChecks.length === 0) {
-        container.innerHTML = createEmptyState('success');
-        return;
-    }
-    
-    passedChecks.forEach(check => {
-        const item = createFindingItem(check, 'success');
-        container.appendChild(item);
-    });
-}
-
-function updateDetailedFindings(findings) {
-    if (!findings) return;
-    
-    // Logo details
-    updateLogoDetails(findings.logo);
-    updateStatusIndicator('logo-status', findings.logo);
-    
-    // Colors details
-    updateColorsDetails(findings.colors);
-    updateStatusIndicator('colors-status', findings.colors);
-    
-    // Typography details
-    updateTypographyDetails(findings.typography);
-    updateStatusIndicator('typography-status', findings.typography);
-    
-    // Accessibility details
-    updateAccessibilityDetails(findings.accessibility);
-    updateStatusIndicator('accessibility-status', findings.accessibility);
-}
-
-function updateLogoDetails(logoData) {
-    const container = document.getElementById('logo-details');
-    if (!logoData) return;
-    
-    container.innerHTML = `
-        <div class="detail-row">
-            <span class="detail-label">Present:</span>
-            <span class="detail-value">${logoData.present ? '✅ Yes' : '❌ No'}</span>
-        </div>
-        ${logoData.width ? `
-        <div class="detail-row">
-            <span class="detail-label">Width:</span>
-            <span class="detail-value">${logoData.width}</span>
-        </div>` : ''}
-        ${logoData.clearSpace ? `
-        <div class="detail-row">
-            <span class="detail-label">Clear Space:</span>
-            <span class="detail-value">${logoData.clearSpace === 'pass' ? '✅ Adequate' : '❌ Insufficient'}</span>
-        </div>` : ''}
-        ${logoData.violations && logoData.violations.length > 0 ? `
-        <div class="detail-row">
-            <span class="detail-label">Issues:</span>
-            <div class="detail-value">
-                <ul style="margin: 0; padding-left: 1.25rem;">
-                    ${logoData.violations.map(v => `<li>${v}</li>`).join('')}
-                </ul>
-            </div>
-        </div>` : ''}
-    `;
-}
-
-function updateColorsDetails(colorsData) {
-    const container = document.getElementById('colors-details');
-    if (!colorsData) return;
-    
-    let swatchesHTML = '';
-    
-    if (colorsData.detectedColors && colorsData.detectedColors.length > 0) {
-        swatchesHTML = '<div class="color-swatches">';
-        colorsData.detectedColors.forEach(color => {
-            const isApproved = !colorsData.unapprovedColors?.includes(color);
-            swatchesHTML += `
-                <div class="color-swatch">
-                    <div class="color-box" style="background-color: ${color};"></div>
-                    <span class="color-code">${color}</span>
-                    <span>${isApproved ? '✅' : '❌'}</span>
-                </div>
-            `;
-        });
-        swatchesHTML += '</div>';
-    }
-    
-    container.innerHTML = `
-        <div class="detail-row">
-            <span class="detail-label">Detected Colors:</span>
-            <div class="detail-value">
-                ${swatchesHTML || 'No colors detected'}
-            </div>
-        </div>
-        ${colorsData.unapprovedColors && colorsData.unapprovedColors.length > 0 ? `
-        <div class="detail-row">
-            <span class="detail-label">Unapproved:</span>
-            <span class="detail-value">${colorsData.unapprovedColors.join(', ')}</span>
-        </div>` : ''}
-    `;
-}
-
-function updateTypographyDetails(typographyData) {
-    const container = document.getElementById('typography-details');
-    if (!typographyData) return;
-    
-    container.innerHTML = `
-        ${typographyData.detectedFonts ? `
-        <div class="detail-row">
-            <span class="detail-label">Detected Fonts:</span>
-            <span class="detail-value">${typographyData.detectedFonts.join(', ')}</span>
-        </div>` : ''}
-        ${typographyData.fontApproved !== undefined ? `
-        <div class="detail-row">
-            <span class="detail-label">Font Approved:</span>
-            <span class="detail-value">${typographyData.fontApproved ? '✅ Yes' : '❌ No'}</span>
-        </div>` : ''}
-        ${typographyData.violations && typographyData.violations.length > 0 ? `
-        <div class="detail-row">
-            <span class="detail-label">Issues:</span>
-            <div class="detail-value">
-                <ul style="margin: 0; padding-left: 1.25rem;">
-                    ${typographyData.violations.map(v => `<li>${v}</li>`).join('')}
-                </ul>
-            </div>
-        </div>` : ''}
-    `;
-}
-
-function updateAccessibilityDetails(accessibilityData) {
-    const container = document.getElementById('accessibility-details');
-    if (!accessibilityData) return;
-    
-    container.innerHTML = `
-        ${accessibilityData.contrastCheck ? `
-        <div class="detail-row">
-            <span class="detail-label">Contrast Ratio:</span>
-            <span class="detail-value">${accessibilityData.contrastCheck === 'pass' ? '✅ Passes WCAG AA' : '❌ Fails WCAG AA'}</span>
-        </div>` : ''}
-        ${accessibilityData.textSizeCheck ? `
-        <div class="detail-row">
-            <span class="detail-label">Text Size:</span>
-            <span class="detail-value">${accessibilityData.textSizeCheck === 'pass' ? '✅ Adequate' : '❌ Too small'}</span>
-        </div>` : ''}
-    `;
-}
-
-function updateStatusIndicator(elementId, data) {
-    const indicator = document.getElementById(elementId);
-    if (!data) return;
-    
-    // Determine status based on violations
-    let status = 'pass';
-    if (data.violations && data.violations.length > 0) {
-        status = 'fail';
-    } else if (data.warnings && data.warnings.length > 0) {
-        status = 'warning';
-    }
-    
-    indicator.className = `status-indicator status-${status}`;
-}
-
 // ============================================
 // Tab Navigation
 // ============================================
@@ -1406,214 +1521,6 @@ function setupAccordions() {
             group.classList.toggle('expanded');
         });
     });
-}
-
-// ============================================
-// Results Actions
-// ============================================
-
-function setupResultsActions() {
-    const downloadBtn = document.getElementById('download-btn');
-    const shareBtn = document.getElementById('share-btn');
-    const requestReviewBtn = document.getElementById('request-review-btn');
-    const newReviewBtn = document.getElementById('new-review-btn');
-    
-    if (downloadBtn) downloadBtn.addEventListener('click', handleDownloadReport);
-    if (shareBtn) shareBtn.addEventListener('click', handleShareResults);
-    if (requestReviewBtn) requestReviewBtn.addEventListener('click', handleRequestReview);
-    if (newReviewBtn) newReviewBtn.addEventListener('click', handleNewReview);
-}
-
-function handleDownloadReport() {
-    if (!currentResults) return;
-    
-    const markdown = generateMarkdownReport(currentResults);
-    const blob = new Blob([markdown], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `brand-compliance-report-${Date.now()}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    showToast('Report downloaded successfully', 'success');
-}
-
-function generateMarkdownReport(results) {
-    const brand = document.getElementById('brand-select').value;
-    const designType = document.getElementById('design-type-select').value;
-    const date = new Date().toLocaleDateString();
-    
-    return `# Brand Compliance Report
-
-**Brand:** ${getBrandName(brand)}  
-**Design Type:** ${getDesignTypeName(designType)}  
-**Date:** ${date}  
-**Status:** ${results.overallCompliance.toUpperCase()}  
-**Compliance Score:** ${results.complianceScore}/100
-
----
-
-## Summary
-
-${results.summary}
-
----
-
-## Critical Violations
-
-${results.criticalViolations && results.criticalViolations.length > 0 
-    ? results.criticalViolations.map(v => `- ❌ ${v}`).join('\n') 
-    : '_No critical violations found._'}
-
----
-
-## Warnings
-
-${results.warnings && results.warnings.length > 0 
-    ? results.warnings.map(w => `- ⚠️ ${w}`).join('\n') 
-    : '_No warnings found._'}
-
----
-
-## Recommendations
-
-${results.recommendations && results.recommendations.length > 0 
-    ? results.recommendations.map(r => `- 💡 ${r}`).join('\n') 
-    : '_No recommendations at this time._'}
-
----
-
-## Detailed Findings
-
-### Logo
-${results.findings?.logo ? formatLogoFindings(results.findings.logo) : '_No data available._'}
-
-### Colors
-${results.findings?.colors ? formatColorFindings(results.findings.colors) : '_No data available._'}
-
-### Typography
-${results.findings?.typography ? formatTypographyFindings(results.findings.typography) : '_No data available._'}
-
-### Accessibility
-${results.findings?.accessibility ? formatAccessibilityFindings(results.findings.accessibility) : '_No data available._'}
-
----
-
-_Report generated by OAD Brand Review Assistant_
-`;
-}
-
-function formatLogoFindings(logo) {
-    return `
-- Present: ${logo.present ? '✅ Yes' : '❌ No'}
-${logo.width ? `- Width: ${logo.width}` : ''}
-${logo.clearSpace ? `- Clear Space: ${logo.clearSpace === 'pass' ? '✅ Adequate' : '❌ Insufficient'}` : ''}
-${logo.violations ? logo.violations.map(v => `- Issue: ${v}`).join('\n') : ''}
-`.trim();
-}
-
-function formatColorFindings(colors) {
-    return `
-- Detected Colors: ${colors.detectedColors?.join(', ') || 'None'}
-${colors.unapprovedColors && colors.unapprovedColors.length > 0 
-    ? `- Unapproved Colors: ${colors.unapprovedColors.join(', ')}` 
-    : ''}
-`.trim();
-}
-
-function formatTypographyFindings(typography) {
-    return `
-${typography.detectedFonts ? `- Detected Fonts: ${typography.detectedFonts.join(', ')}` : ''}
-${typography.fontApproved !== undefined 
-    ? `- Font Approved: ${typography.fontApproved ? '✅ Yes' : '❌ No'}` 
-    : ''}
-`.trim();
-}
-
-function formatAccessibilityFindings(accessibility) {
-    return `
-${accessibility.contrastCheck 
-    ? `- Contrast Ratio: ${accessibility.contrastCheck === 'pass' ? '✅ Passes' : '❌ Fails'}` 
-    : ''}
-${accessibility.textSizeCheck 
-    ? `- Text Size: ${accessibility.textSizeCheck === 'pass' ? '✅ Adequate' : '❌ Too small'}` 
-    : ''}
-`.trim();
-}
-
-async function handleShareResults() {
-    const shareData = {
-        title: 'Brand Compliance Report',
-        text: `Compliance Score: ${currentResults.complianceScore}/100 - ${currentResults.overallCompliance.toUpperCase()}`,
-        url: window.location.href
-    };
-    
-    if (navigator.share) {
-        try {
-            await navigator.share(shareData);
-            showToast('Shared successfully', 'success');
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                fallbackShare();
-            }
-        }
-    } else {
-        fallbackShare();
-    }
-}
-
-function fallbackShare() {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-        showToast('Link copied to clipboard', 'success');
-    }).catch(() => {
-        showToast('Unable to share. Please copy the URL manually.', 'error');
-    });
-}
-
-function handleRequestReview() {
-    const email = document.getElementById('email-input').value;
-    const brand = document.getElementById('brand-select').value;
-    
-    const subject = `Brand Compliance Review Request - ${getBrandName(brand)}`;
-    const body = `Hi Brand Team,
-
-I've completed an automated brand compliance review and would like to request a human review.
-
-Compliance Score: ${currentResults.complianceScore}/100
-Status: ${currentResults.overallCompliance.toUpperCase()}
-
-Critical Violations: ${currentResults.criticalViolations?.length || 0}
-Warnings: ${currentResults.warnings?.length || 0}
-
-Please review the attached design and provide feedback.
-
-Thank you!
-${email}`;
-    
-    window.location.href = `mailto:brand-team@bayer.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    showToast('Opening email client...', 'info');
-}
-
-function handleNewReview() {
-    // Reset state
-    currentResults = null;
-    uploadedFile = null;
-    
-    // Reset form
-    elements.uploadForm.reset();
-    handleFileRemove(new Event('click'));
-    
-    // Show upload section, hide results
-    elements.resultsSection.classList.add('hidden');
-    elements.uploadSection.classList.remove('hidden');
-    
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ============================================
@@ -1757,7 +1664,7 @@ function loadMockResults() {
     };
     
     currentResults = mockResults;
-    displayResults(mockResults, mockFormData);
+    console.log('Mock results loaded:', mockResults);
 }
 
 // ============================================
@@ -1780,6 +1687,24 @@ function setupSidebarNavigation() {
             showPanel(panelId);
         });
     });
+    
+    // Setup sidebar toggle
+    setupSidebarToggle();
+}
+
+function setupSidebarToggle() {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    const main = document.querySelector('.main');
+    
+    if (toggleBtn && sidebar) {
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            if (main) {
+                main.classList.toggle('sidebar-collapsed');
+            }
+        });
+    }
 }
 
 function showPanel(panelId) {
@@ -2041,55 +1966,10 @@ function toggleGuidelineRule(ruleId) {
 // Make function globally available
 window.toggleGuidelineRule = toggleGuidelineRule;
 
-// Helper function to get source URL for a finding
-function getSourceUrlForFinding(finding) {
-    if (!brandRulesData) return null;
-    
-    // Try to match finding text to a rule
-    const categories = ['logo', 'colors', 'typography', 'accessibility', 'layout'];
-    
-    for (const cat of categories) {
-        if (brandRulesData[cat]?.rules) {
-            for (const rule of brandRulesData[cat].rules) {
-                // Check if finding mentions this rule
-                const findingLower = finding.toLowerCase();
-                const ruleLower = rule.name.toLowerCase();
-                
-                if (findingLower.includes(ruleLower) || 
-                    findingLower.includes(rule.ruleId.toLowerCase()) ||
-                    (rule.requirement && findingLower.includes(rule.requirement.toLowerCase().substring(0, 20)))) {
-                    return {
-                        url: rule.sourceUrl,
-                        page: rule.sourcePage,
-                        ruleId: rule.ruleId,
-                        ruleName: rule.name
-                    };
-                }
-            }
-        }
-    }
-    
-    // Default category matching
-    if (finding.toLowerCase().includes('logo')) {
-        return { url: brandRulesData.brandBookUrl + '#logo-guidelines', section: 'logo' };
-    }
-    if (finding.toLowerCase().includes('color') || finding.toLowerCase().includes('#')) {
-        return { url: brandRulesData.brandBookUrl + '#color-palette', section: 'colors' };
-    }
-    if (finding.toLowerCase().includes('font') || finding.toLowerCase().includes('type') || finding.toLowerCase().includes('text')) {
-        return { url: brandRulesData.brandBookUrl + '#typography', section: 'typography' };
-    }
-    if (finding.toLowerCase().includes('contrast') || finding.toLowerCase().includes('accessibility')) {
-        return { url: brandRulesData.brandBookUrl + '#accessibility', section: 'accessibility' };
-    }
-    
-    return null;
-}
 
 // For debugging - expose to console
 window.brandReviewApp = {
     loadMockResults,
     CONFIG,
-    brandRulesData: () => brandRulesData,
-    getSourceUrlForFinding
+    brandRulesData: () => brandRulesData
 };
