@@ -158,7 +158,7 @@ async function callFoundryAgent(agentId, query, endpoint) {
         const apiKey = FOUNDRY_CONFIG.apiKey;
 
         // Azure OpenAI Chat Completions API URL
-        const apiUrl = `${azureEndpoint}/openai/deployments/${deployment}/chat/completions?api-version=2024-08-01-preview`;
+        const apiUrl = `${azureEndpoint}/openai/deployments/${deployment}/chat/completions?api-version=2025-01-01-preview`;
 
         console.log('Calling Azure OpenAI API...');
         console.log('Endpoint:', azureEndpoint);

@@ -5,13 +5,13 @@
 // Configuration - UPDATE THESE VALUES FOR YOUR FOUNDRY AGENT
 const CONFIG = {
     // API Server Configuration
-    apiBaseUrl: 'http://localhost:3001', // Node.js API server URL
-    
+    apiBaseUrl: 'http://localhost:3005', // Node.js API server URL
+
     // Foundry Agent Configuration
     foundryEndpoint: 'https://brandchatbot-1-resource.services.ai.azure.com/api/projects/brandchatbot-1',
     agentId: 'DesignAgent',
-    azureOpenaiEndpoint: 'https://brandchatbot-1-resource.openai.azure.com',
-    azureOpenaiDeployment: 'gpt-4o',
+    azureOpenaiEndpoint: 'https://brandchatbot-1-resource.services.ai.azure.com',
+    azureOpenaiDeployment: 'gpt-4.1',
 
     // File constraints
     maxFileSize: 10 * 1024 * 1024, // 10MB
