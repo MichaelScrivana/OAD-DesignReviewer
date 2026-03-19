@@ -5,7 +5,7 @@
 // Configuration - UPDATE THESE VALUES FOR YOUR FOUNDRY AGENT
 const CONFIG = {
     // API Server Configuration
-    apiBaseUrl: 'http://localhost:3005', // Node.js API server URL
+    apiBaseUrl: 'https://oad-design-reviewer-api-g4hbb2c0hjcffdgv.canadacentral-01.azurewebsites.net', // Node.js API server URL
 
     // Foundry Agent Configuration
     foundryEndpoint: 'https://brandchatbot-1-resource.services.ai.azure.com/api/projects/brandchatbot-1',
